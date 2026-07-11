@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-arena-navy: #0f172a;
+  --color-arena-blue: #1e40af;
+  --color-arena-accent: #3b82f6;
+  --color-arena-emerald: #059669;
+  --color-arena-surface: #f8fafc;
+  --color-arena-muted: #64748b;
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+    overflow-x: clip;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    @apply bg-arena-surface text-arena-navy antialiased;
+    min-height: 100dvh;
+    overflow-x: clip;
+    font-family: var(--font-sans);
+  }
+
+  #root {
+    min-height: 100dvh;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-arena-accent;
+  }
+}
