@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from 'react';
+import { ClipboardList, MapPinned, ShieldAlert } from 'lucide-react';
 import { BackLink } from '@/components/BackLink';
+import { AIResponseCard } from '@/components/ui/AIResponseCard';
+import { AlertBanner } from '@/components/ui/AlertBanner';
+import { ChatBubble } from '@/components/ui/ChatBubble';
+import { FloatingAssistant } from '@/components/ui/FloatingAssistant';
+import { KpiCard } from '@/components/ui/KpiCard';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { StadiumState, OperationalDecision, CopilotResponse } from '../types';
 
 const SELECTABLE_ZONES = [
@@ -165,44 +176,62 @@ export function VolunteerPage() {
 
   if (!stadiumState) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-slate-900 p-8 text-white">
-        <p className="text-lg animate-pulse" role="status">Syncing with Match Dispatch Network...</p>
+      <div className="flex flex-1 items-center justify-center bg-slate-950 p-8 text-white">
+        <LoadingState label="Syncing with Match Dispatch Network..." />
       </div>
     );
   }
 
   const assignedZone = stadiumState.zones.find(z => z.id === assignedZoneId);
-  const activeIncidents = stadiumState.incidents.filter(i => i.active);
+  const activeIncidents = Array.from(
+    new Map(stadiumState.incidents.filter(i => i.active).map(incident => [incident.id, incident])).values(),
+  );
 
   // Dynamic tasks filtered by the assigned zone
   const assignedTasks = decisions.filter(dec => dec.affectedLocations.includes(assignedZoneId));
 
   return (
-    <div className="mx-auto w-full max-w-lg px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
       {/* Back button */}
       <div className="mb-4">
         <BackLink label="Back to Launcher" />
       </div>
 
-      {/* Title block */}
-      <header className="mb-6 text-center">
-        <span className="inline-block rounded-full bg-amber-100 text-amber-800 px-3 py-1 text-xs font-semibold uppercase tracking-wider">
-          Volunteer Support Portal
-        </span>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900 tracking-tight">ArenaFlow Staff Assist</h1>
-        <p className="mt-1 text-xs text-slate-500">Sector Instructions & Live Incident reporting</p>
+      <header className="mb-6">
+        <SectionHeader
+          eyebrow="Volunteer Support Portal"
+          title="Volunteer Mission Console"
+          description="Assigned-zone mission brief, priority tasks, dispatch broadcasts, and incident reporting."
+          action={<StatusBadge label={`${stadiumState.matchPhase.replace(/_/g, ' ')}`} tone="warning" />}
+        />
       </header>
 
+      <section className="mb-6 grid gap-4 md:grid-cols-3">
+        <KpiCard label="Assigned zone" value={assignedZone?.name ?? assignedZoneId} helper="Live sector posture" icon={MapPinned} />
+        <KpiCard label="Dispatch alerts" value={String(activeIncidents.length)} helper="Field incidents requiring attention" icon={ShieldAlert} tone={activeIncidents.length > 0 ? 'danger' : 'success'} />
+        <KpiCard label="Directives" value={String(assignedTasks.length)} helper="Volunteer actions linked to active decisions" icon={ClipboardList} tone="default" />
+      </section>
+
+      {activeIncidents.length > 0 && (
+        <section className="mb-6">
+          <AlertBanner
+            title="Dispatch Broadcast Alerts"
+            message={activeIncidents.map(inc => `${inc.title}: ${inc.description}`).join(' • ')}
+            tone="warning"
+          />
+        </section>
+      )}
+
       {/* Zone assignment control */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm mb-6" aria-label="Zone Assignment">
-        <label htmlFor="assigned-zone" className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+      <section className="mb-6 rounded-[28px] border border-white/10 bg-white/[0.06] p-5 shadow-xl shadow-slate-950/25 backdrop-blur" aria-label="Zone Assignment">
+        <label htmlFor="assigned-zone" className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-300">
           Your Assigned Sector:
         </label>
         <select
           id="assigned-zone"
           value={assignedZoneId}
           onChange={(e) => setAssignedZoneId(e.target.value)}
-          className="w-full rounded-lg border border-slate-350 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+          className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus:outline-none"
         >
           {SELECTABLE_ZONES.map(z => (
             <option key={z.id} value={z.id}>
@@ -214,42 +243,46 @@ export function VolunteerPage() {
 
       {/* Sector Live Briefing */}
       {assignedZone && (
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 mb-6" aria-label="Sector Telemetry">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 className="text-sm font-bold text-slate-800">Sector telemetry: {assignedZone.name}</h2>
+        <section className="mb-6 space-y-4 rounded-[28px] border border-white/10 bg-white/[0.06] p-5 shadow-xl shadow-slate-950/25 backdrop-blur" aria-label="Sector Telemetry">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <h2 className="text-sm font-bold text-white">Current Mission: {assignedZone.name}</h2>
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-              assignedZone.attentionLevel === 'CRITICAL' ? 'bg-red-150 text-red-700' :
-              assignedZone.attentionLevel === 'HIGH' ? 'bg-orange-150 text-orange-700' :
-              assignedZone.attentionLevel === 'WATCH' ? 'bg-amber-150 text-amber-700' : 'bg-slate-100 text-slate-700'
+              assignedZone.attentionLevel === 'CRITICAL' ? 'bg-red-500/20 text-red-100' :
+              assignedZone.attentionLevel === 'HIGH' ? 'bg-orange-500/20 text-orange-100' :
+              assignedZone.attentionLevel === 'WATCH' ? 'bg-amber-500/20 text-amber-100' : 'bg-slate-800 text-slate-200'
             }`}>
               Risk: {assignedZone.riskScore}
             </span>
           </div>
 
           {/* AI Task Brief */}
-          <div className="rounded-lg border border-slate-150 bg-slate-50 p-4">
+          <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dynamic Task Briefing</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-blue-100">AI Volunteer Assistant</h3>
               {!briefAiPowered && (
-                <span className="text-[9px] font-sans font-medium text-amber-600">Offline Fallback</span>
+                <span className="text-[9px] font-sans font-medium text-amber-300">Offline Fallback</span>
               )}
             </div>
-            <div className="text-xs text-slate-700 leading-relaxed font-sans min-h-[60px] whitespace-pre-line">
-              {briefLoading ? 'Syncing latest task directives...' : volunteerBrief}
+            <div className="min-h-[60px]">
+              {briefLoading ? (
+                <LoadingSkeleton lines={3} />
+              ) : (
+                <AIResponseCard content={volunteerBrief} title="Volunteer Mission Brief" />
+              )}
             </div>
           </div>
 
           {/* Task checklist derived from engines */}
           {assignedTasks.length > 0 && (
             <div>
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Operational Directives</h3>
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-300">Priority Tasks</h3>
               <ul className="space-y-2">
                 {assignedTasks.map(dec => (
-                  <li key={dec.id} className="flex items-start gap-2 bg-amber-50/50 rounded border border-amber-200 p-3 text-xs text-amber-800">
-                    <span className="mt-0.5" aria-hidden="true">📋</span>
+                  <li key={dec.id} className="flex items-start gap-2 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs text-amber-100">
+                    <span className="mt-0.5" aria-hidden="true">Task</span>
                     <div>
-                      <p className="font-bold text-slate-900">{dec.title}</p>
-                      <p className="mt-1 leading-normal text-slate-700">{dec.communicationRequired.volunteerInstruction}</p>
+                      <p className="font-bold text-white">{dec.title}</p>
+                      <p className="mt-1 leading-normal text-slate-200">{dec.communicationRequired.volunteerInstruction}</p>
                     </div>
                   </li>
                 ))}
@@ -261,12 +294,12 @@ export function VolunteerPage() {
 
       {/* Live Stadium Announcements */}
       {activeIncidents.length > 0 && (
-        <section className="rounded-xl border border-red-200 bg-red-50 p-4 mb-6" aria-label="Field Emergency Broadcasts">
-          <h2 className="text-xs font-bold text-red-800 uppercase tracking-wider">⚠️ Dispatch Broadcast Alerts</h2>
-          <ul className="mt-2 space-y-1.5 text-xs text-red-700 leading-normal">
+        <section className="mb-6 rounded-[28px] border border-red-400/30 bg-red-500/10 p-4" aria-label="Field Emergency Broadcasts">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-red-100">Recent Broadcasts</h2>
+          <ul className="mt-2 space-y-1.5 text-xs leading-normal text-red-100">
             {activeIncidents.map(inc => (
               <li key={inc.id}>
-                • <span className="font-semibold">{inc.title}</span>: {inc.description}
+                <span className="font-semibold">{inc.title}</span>: {inc.description}
               </li>
             ))}
           </ul>
@@ -274,29 +307,29 @@ export function VolunteerPage() {
       )}
 
       {/* Incident Reporting Form */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm mb-6" aria-label="Report Field Incident">
-        <h2 className="text-sm font-semibold text-slate-800 uppercase tracking-wider mb-4">Report Field Incident</h2>
+      <section className="mb-6 rounded-[28px] border border-white/10 bg-white/[0.06] p-5 shadow-xl shadow-slate-950/25 backdrop-blur" aria-label="Report Field Incident">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-blue-100">Incident Reporting</h2>
         
         {incidentStatus && (
-          <div className="rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 p-3.5 mb-4" role="status">
+          <div className="mb-4 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-100" role="status">
             {incidentStatus}
           </div>
         )}
 
         {incidentError && (
-          <div className="rounded-lg bg-red-50 border border-red-200 text-xs text-red-800 p-3.5 mb-4" role="alert">
+          <div className="mb-4 rounded-2xl border border-red-400/30 bg-red-500/10 p-3.5 text-xs text-red-100" role="alert">
             {incidentError}
           </div>
         )}
 
         <form onSubmit={handleReportIncident} className="space-y-4">
           <div>
-            <label htmlFor="report-zone" className="block text-xs font-semibold text-slate-600 mb-1">Incident Location:</label>
+            <label htmlFor="report-zone" className="mb-1 block text-xs font-semibold text-slate-300">Incident Location:</label>
             <select
               id="report-zone"
               value={reportZone}
               onChange={(e) => setReportZone(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:outline-none"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-white focus:outline-none"
             >
               {SELECTABLE_ZONES.map(z => (
                 <option key={z.id} value={z.id}>
@@ -308,23 +341,23 @@ export function VolunteerPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="incident-title" className="block text-xs font-semibold text-slate-600 mb-1">Issue / Title:</label>
+              <label htmlFor="incident-title" className="mb-1 block text-xs font-semibold text-slate-300">Issue / Title:</label>
               <input
                 id="incident-title"
                 type="text"
                 value={incidentTitle}
                 onChange={(e) => setIncidentTitle(e.target.value)}
                 placeholder="e.g. Crowd block"
-                className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
               />
             </div>
             <div>
-              <label htmlFor="incident-severity" className="block text-xs font-semibold text-slate-600 mb-1">Severity Rating:</label>
+              <label htmlFor="incident-severity" className="mb-1 block text-xs font-semibold text-slate-300">Severity Rating:</label>
               <select
                 id="incident-severity"
                 value={incidentSeverity}
                 onChange={(e) => setIncidentSeverity(e.target.value as any)}
-                className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:outline-none"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-white focus:outline-none"
               >
                 <option value="LOW">Low (Hazard)</option>
                 <option value="MEDIUM">Medium (Crowding)</option>
@@ -335,46 +368,45 @@ export function VolunteerPage() {
           </div>
 
           <div>
-            <label htmlFor="incident-desc" className="block text-xs font-semibold text-slate-600 mb-1">Description:</label>
+            <label htmlFor="incident-desc" className="mb-1 block text-xs font-semibold text-slate-300">Description:</label>
             <textarea
               id="incident-desc"
               rows={3}
               value={incidentDesc}
               onChange={(e) => setIncidentDesc(e.target.value)}
               placeholder="Provide exact details to operations center..."
-              className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
             />
           </div>
 
           <button
             type="submit"
             disabled={reportingLoading}
-            className="w-full rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 disabled:bg-amber-300"
+            className="w-full rounded-2xl bg-arena-warning py-2.5 text-sm font-bold text-slate-950 transition hover:bg-amber-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 disabled:bg-amber-300"
           >
             {reportingLoading ? 'Filing incident report...' : 'Submit Incident to Dispatch'}
           </button>
         </form>
       </section>
 
+      <FloatingAssistant role="VOLUNTEER" selectedZoneId={assignedZoneId} stadiumState={stadiumState} />
+
       {/* Volunteer Copilot chat */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col" aria-label="Volunteer Copilot">
-        <h2 className="text-sm font-semibold text-slate-800 uppercase tracking-wider mb-2">Volunteer Support Copilot</h2>
+      <section className="flex flex-col rounded-[28px] border border-white/10 bg-white/[0.06] p-5 shadow-xl shadow-slate-950/25 backdrop-blur" aria-label="Volunteer Copilot">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-blue-100">Communication Panel</h2>
         
-        <div className="flex-1 overflow-y-auto p-2.5 max-h-[140px] border border-slate-100 rounded-lg space-y-3 bg-slate-50 text-xs">
+        <div className="max-h-[180px] flex-1 space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/60 p-2.5 text-xs">
           {chatHistory.length === 0 && (
             <p className="text-slate-400 text-center py-6">Need helper checklists or evacuation guides? Ask Copilot.</p>
           )}
           {chatHistory.map((msg, idx) => (
-            <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
-              <div className={`rounded px-3 py-1.5 max-w-[85%] ${
-                msg.sender === 'user' ? 'bg-amber-500 text-slate-950 font-medium' : 'bg-white border border-slate-200 text-slate-800'
-              }`}>
-                {msg.text}
-              </div>
-              {!msg.aiPowered && msg.sender === 'assistant' && (
-                <span className="text-[9px] text-amber-600 mt-0.5">⚠️ Offline Response</span>
+            <ChatBubble key={`${msg.sender}-${idx}-${msg.text.slice(0, 12)}`} role={msg.sender === 'user' ? 'user' : 'copilot'} fallback={!msg.aiPowered}>
+              {msg.sender === 'assistant' ? (
+                <MarkdownRenderer content={msg.text} />
+              ) : (
+                <span className="whitespace-pre-line">{msg.text}</span>
               )}
-            </div>
+            </ChatBubble>
           ))}
           {chatLoading && (
             <p className="text-slate-400 text-[10px] animate-pulse">Copilot is thinking...</p>
@@ -387,12 +419,12 @@ export function VolunteerPage() {
             placeholder="Ask sector coordinator..."
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
-            className="flex-1 rounded-lg border border-slate-350 px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-amber-500 focus:outline-none"
+            className="flex-1 rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
             aria-label="Type your message to the volunteer coordinator"
           />
           <button
             type="submit"
-            className="rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3.5 py-2 text-xs transition-colors"
+            className="rounded-2xl bg-arena-warning px-3.5 py-2 text-xs font-bold text-slate-950 transition hover:bg-amber-300"
           >
             Send
           </button>

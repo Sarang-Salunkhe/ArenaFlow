@@ -26,25 +26,25 @@ const roles = [
 
 export function LandingPage() {
   return (
-    <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16">
+    <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
       <section aria-labelledby="hero-heading" className="text-center">
-        <p className="text-sm font-semibold uppercase tracking-wider text-arena-accent">
-          Welcome
+        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-arena-accent">
+          Intelligent stadium command platform
         </p>
         <h1
           id="hero-heading"
-          className="mt-3 text-4xl font-bold tracking-tight text-arena-navy sm:text-5xl"
+          className="mt-3 text-4xl font-bold tracking-tight text-white sm:text-6xl"
         >
           ArenaFlow
         </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-lg text-arena-muted">
+        <p className="mx-auto mt-4 max-w-2xl text-lg text-blue-100">
           GenAI-Powered Stadium Intelligence &amp; Operations Platform
         </p>
-        <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-slate-600">
+        <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-slate-300">
           ArenaFlow connects real-time stadium intelligence with role-based experiences for
           operations teams, fans, and volunteers. Deterministic engines handle operational facts
           and routing decisions, while GenAI provides contextual explanations and communication
-          &mdash; all designed for major international football tournament environments.
+          for massive international football tournament environments.
         </p>
       </section>
 

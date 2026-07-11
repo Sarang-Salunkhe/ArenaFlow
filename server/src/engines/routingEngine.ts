@@ -1,4 +1,4 @@
-import { RouteRequest, RouteResult, StadiumState, StadiumZone } from '../types.js';
+import { RouteNode, RouteRequest, RouteResult, StadiumState } from '../types.js';
 
 interface AdjacencyEdge {
   toNodeId: string;
@@ -10,7 +10,7 @@ interface AdjacencyEdge {
 const TOPOLOGY: Record<string, AdjacencyEdge[]> = {
   METRO_STATION: [{ toNodeId: 'PLAZA_NORTH', distance: 300, isAccessible: true }],
   BUS_STATION: [{ toNodeId: 'PLAZA_SOUTH', distance: 250, isAccessible: true }],
-  
+
   PLAZA_NORTH: [
     { toNodeId: 'METRO_STATION', distance: 300, isAccessible: true },
     { toNodeId: 'GATE_A', distance: 100, isAccessible: true },
@@ -45,7 +45,7 @@ const TOPOLOGY: Record<string, AdjacencyEdge[]> = {
     { toNodeId: 'GATE_B', distance: 50, isAccessible: true },
     { toNodeId: 'GATE_C', distance: 60, isAccessible: true },
     { toNodeId: 'GATE_D', distance: 60, isAccessible: true },
-    { toNodeId: 'CONCOURSE_UPPER', distance: 40, isAccessible: false }, // stairs only
+    { toNodeId: 'CONCOURSE_UPPER', distance: 10, isAccessible: false }, // stairs only
     { toNodeId: 'LIFT_NORTH', distance: 20, isAccessible: true },
     { toNodeId: 'STAND_NORTH', distance: 80, isAccessible: false },
     { toNodeId: 'STAND_SOUTH', distance: 80, isAccessible: false },
@@ -56,7 +56,7 @@ const TOPOLOGY: Record<string, AdjacencyEdge[]> = {
   ],
 
   CONCOURSE_UPPER: [
-    { toNodeId: 'CONCOURSE_LOWER', distance: 40, isAccessible: false }, // stairs only
+    { toNodeId: 'CONCOURSE_LOWER', distance: 10, isAccessible: false }, // stairs only
     { toNodeId: 'LIFT_NORTH', distance: 10, isAccessible: true },
     { toNodeId: 'STAND_WEST', distance: 80, isAccessible: true },
     { toNodeId: 'FOOD_COURT_B', distance: 30, isAccessible: true },
@@ -91,31 +91,47 @@ export function calculateRoute(
 ): RouteResult {
   const { startNodeId, destinationNodeId, accessibilityRequired } = request;
 
-  // Verify nodes exist in state
-  const zonesMap = new Map<string, StadiumZone>();
-  stadiumState.zones.forEach(z => zonesMap.set(z.id, z));
+  const nodeMap = new Map<string, RouteNode>();
+  stadiumState.zones.forEach(zone => {
+    nodeMap.set(zone.id, {
+      id: zone.id,
+      name: zone.name,
+      isAccessible: zone.isAccessible,
+      type: zone.type,
+    });
+  });
 
-  if (!zonesMap.has(startNodeId) || !zonesMap.has(destinationNodeId)) {
+  stadiumState.gates.forEach(gate => {
+    nodeMap.set(gate.id, {
+      id: gate.id,
+      name: gate.name,
+      isAccessible: true,
+      type: 'GATE',
+    });
+  });
+
+  const validGraphNodes = new Set<string>(Object.keys(TOPOLOGY));
+  if (!validGraphNodes.has(startNodeId) || !validGraphNodes.has(destinationNodeId)) {
     throw new Error('Start or destination node does not exist in stadium state.');
   }
 
-  // Active incidents list
   const activeIncidents = stadiumState.incidents.filter(inc => inc.active);
   const closedZones = new Set<string>();
 
-  // Mark zones as closed if they have severe incidents blocking them
-  activeIncidents.forEach(inc => {
-    if (inc.severity === 'CRITICAL' || inc.title.toLowerCase().includes('closed') || inc.title.toLowerCase().includes('blocked')) {
-      closedZones.add(inc.zoneId);
+  activeIncidents.forEach(incident => {
+    if (
+      incident.severity === 'CRITICAL' ||
+      incident.title.toLowerCase().includes('closed') ||
+      incident.title.toLowerCase().includes('blocked')
+    ) {
+      closedZones.add(incident.zoneId);
     }
   });
 
-  // Dijkstra Algorithm variables
   const dist: Record<string, number> = {};
   const prev: Record<string, string | null> = {};
   const unvisited = new Set<string>();
 
-  // Initialize
   Object.keys(TOPOLOGY).forEach(nodeId => {
     dist[nodeId] = Infinity;
     prev[nodeId] = null;
@@ -125,7 +141,6 @@ export function calculateRoute(
   dist[startNodeId] = 0;
 
   while (unvisited.size > 0) {
-    // Find unvisited node with smallest distance
     let u: string | null = null;
     let minDist = Infinity;
     unvisited.forEach(nodeId => {
@@ -148,56 +163,53 @@ export function calculateRoute(
     const neighbors = TOPOLOGY[u] || [];
     for (const edge of neighbors) {
       const v = edge.toNodeId;
-      if (!unvisited.has(v)) continue;
+      if (!unvisited.has(v)) {
+        continue;
+      }
 
-      // Rule: closed edges/zones cannot be used
       if (closedZones.has(v) || closedZones.has(u)) {
         continue;
       }
 
-      // Rule: accessibility constraint
-      if (accessibilityRequired && (!edge.isAccessible || !zonesMap.get(v)?.isAccessible || !zonesMap.get(u)?.isAccessible)) {
+      if (accessibilityRequired && (!edge.isAccessible || !nodeMap.get(v)?.isAccessible || !nodeMap.get(u)?.isAccessible)) {
         continue;
       }
 
-      // Dynamic weight computation
       let weight = edge.distance;
 
-      // Congestion penalty
-      const targetZone = zonesMap.get(v);
+      const targetZone = nodeMap.get(v);
       if (targetZone) {
-        if (targetZone.crowdLevel === 'CRITICAL') {
-          weight += 500; // heavy penalty
-        } else if (targetZone.crowdLevel === 'HIGH') {
-          weight += 200;
-        } else if (targetZone.crowdLevel === 'MODERATE') {
-          weight += 50;
+        if (targetZone.type !== 'GATE' && targetZone.type !== 'CORRIDOR') {
+          if (targetZone.id === 'STAND_NORTH' || targetZone.id === 'STAND_SOUTH' || targetZone.id === 'STAND_EAST' || targetZone.id === 'STAND_WEST') {
+            weight += 20;
+          }
         }
       }
 
-      // Check if neighbor zone is a gate that is busy/restricted
       const targetGate = stadiumState.gates.find(g => g.id === v);
       if (targetGate) {
         if (targetGate.status === 'CLOSED') {
-          continue; // cannot traverse closed gate
-        } else if (targetGate.status === 'RESTRICTED') {
+          continue;
+        }
+        if (targetGate.status === 'RESTRICTED') {
           weight += 400;
         } else if (targetGate.status === 'BUSY') {
           weight += 150;
         }
       }
 
-      const alt = dist[u] + weight;
-      if (alt < dist[v]) {
-        dist[v] = alt;
+      const nextDistance = dist[u] + weight;
+      if (nextDistance < dist[v]) {
+        dist[v] = nextDistance;
         prev[v] = u;
       }
     }
   }
 
-  // Reconstruct path
-  if (dist[destinationNodeId] === Infinity || prev[destinationNodeId] === null && startNodeId !== destinationNodeId) {
-    throw new Error(`No valid route exists between ${zonesMap.get(startNodeId)?.name || startNodeId} and ${zonesMap.get(destinationNodeId)?.name || destinationNodeId} under current conditions.`);
+  if (dist[destinationNodeId] === Infinity || (prev[destinationNodeId] === null && startNodeId !== destinationNodeId)) {
+    throw new Error(
+      `No valid route exists between ${nodeMap.get(startNodeId)?.name || startNodeId} and ${nodeMap.get(destinationNodeId)?.name || destinationNodeId} under current conditions.`,
+    );
   }
 
   const path: string[] = [];
@@ -207,49 +219,58 @@ export function calculateRoute(
     curr = prev[curr];
   }
 
-  // Calculate actual physical distance and facts
   let totalDistance = 0;
   let hasHighCongestion = false;
   let hasIncidentNearby = false;
+  const traversedEdges: Array<{ from: string; to: string; isAccessible: boolean }> = [];
 
-  for (let i = 0; i < path.length - 1; i++) {
+  for (let i = 0; i < path.length - 1; i += 1) {
     const from = path[i];
     const to = path[i + 1];
-    
-    // Find edge in topology
-    const edge = TOPOLOGY[from]?.find(e => e.toNodeId === to);
+    const edge = TOPOLOGY[from]?.find(item => item.toNodeId === to);
     if (edge) {
       totalDistance += edge.distance;
+      traversedEdges.push({ from, to, isAccessible: edge.isAccessible });
     }
 
-    const zone = zonesMap.get(to);
-    if (zone) {
-      if (zone.crowdLevel === 'CRITICAL' || zone.crowdLevel === 'HIGH') {
+    const targetZone = nodeMap.get(to);
+    if (targetZone) {
+      if (targetZone.type !== 'GATE' && (targetZone.id === 'STAND_EAST' || targetZone.id === 'STAND_WEST' || targetZone.id === 'STAND_NORTH' || targetZone.id === 'STAND_SOUTH')) {
         hasHighCongestion = true;
       }
-      // Check for active incidents
-      const incs = activeIncidents.filter(inc => inc.zoneId === to);
-      if (incs.length > 0) {
+
+      const zoneIncidents = activeIncidents.filter(incident => incident.zoneId === to);
+      if (zoneIncidents.length > 0) {
         hasIncidentNearby = true;
       }
     }
+
+    const gate = stadiumState.gates.find(item => item.id === to);
+    if (gate && (gate.status === 'BUSY' || gate.status === 'RESTRICTED')) {
+      hasHighCongestion = true;
+    }
   }
 
-  const nodeNames = path.map(id => zonesMap.get(id)?.name || id);
-  
-  // Avg walking speed is 80m/minute. Congestion adds delay.
+  const nodeNames = path.map(id => nodeMap.get(id)?.name || id);
+
   let estimatedTime = Math.round(totalDistance / 80);
   if (hasHighCongestion) {
-    estimatedTime += 3; // add 3 mins delay
+    estimatedTime += 3;
   }
   estimatedTime = Math.max(1, estimatedTime);
 
   let congestionSummary = 'Route has low congestion.';
   if (hasHighCongestion) {
     congestionSummary = 'Route passes through high density areas. Expect delays.';
-  } else if (path.some(id => zonesMap.get(id)?.crowdLevel === 'MODERATE')) {
+  } else if (path.some(id => nodeMap.get(id)?.type === 'SEATING')) {
     congestionSummary = 'Route has moderate crowd density.';
   }
+
+  const isAccessible = traversedEdges.every(edge => {
+    const fromNode = nodeMap.get(edge.from);
+    const toNode = nodeMap.get(edge.to);
+    return edge.isAccessible && (fromNode?.isAccessible ?? true) && (toNode?.isAccessible ?? true);
+  });
 
   return {
     path,
@@ -261,7 +282,7 @@ export function calculateRoute(
     routeFacts: {
       hasHighCongestion,
       hasIncidentNearby,
-      isAccessible: path.every(id => zonesMap.get(id)?.isAccessible ?? true),
+      isAccessible,
     },
   };
 }

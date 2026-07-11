@@ -1,19 +1,22 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-arena-navy: #0f172a;
-  --color-arena-blue: #1e40af;
-  --color-arena-accent: #3b82f6;
-  --color-arena-emerald: #059669;
-  --color-arena-surface: #f8fafc;
-  --color-arena-muted: #64748b;
-  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --color-arena-navy: #081229;
+  --color-arena-surface: #101828;
+  --color-arena-panel: #172033;
+  --color-arena-blue: #2563eb;
+  --color-arena-accent: #60a5fa;
+  --color-arena-success: #10b981;
+  --color-arena-warning: #f59e0b;
+  --color-arena-danger: #ef4444;
+  --color-arena-muted: #94a3b8;
+  --font-sans: Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
 @layer base {
   html {
     @apply scroll-smooth;
-    overflow-x: clip;
+    overflow-x: hidden;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -31,17 +34,32 @@
   }
 
   body {
-    @apply bg-arena-surface text-arena-navy antialiased;
+    @apply bg-arena-navy text-slate-100 antialiased;
+    min-height: 100svh;
     min-height: 100dvh;
-    overflow-x: clip;
+    overflow-x: hidden;
+    overflow-y: auto;
     font-family: var(--font-sans);
+    background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 34rem),
+      linear-gradient(135deg, #081229 0%, #101828 55%, #07101f 100%);
   }
 
   #root {
+    min-height: 100svh;
     min-height: 100dvh;
+    width: 100%;
   }
 
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-arena-accent;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    @apply transition;
   }
 }

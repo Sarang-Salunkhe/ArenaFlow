@@ -34,3 +34,6 @@ desktop.ini
 
 # Vite
 *.local
+
+# Refact AI metadata
+.refact/

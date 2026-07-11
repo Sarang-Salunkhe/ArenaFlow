@@ -3,6 +3,7 @@ import express from 'express';
 import { env } from './config/env.js';
 import { healthRouter } from './routes/health.js';
 import { stadiumRouter } from './routes/stadium.js';
+import { operationsRouter } from './routes/operations.js';
 import { simulationRouter } from './routes/simulation.js';
 import { routingRouter } from './routes/routing.js';
 import { incidentsRouter } from './routes/incidents.js';
@@ -22,7 +23,8 @@ export function createApp() {
   app.use(express.json());
 
   // Mount endpoints
-  app.use('/api', stadiumRouter); // handles /stadium/state, /operations/insights, /operations/decisions
+  app.use('/api/stadium', stadiumRouter);
+  app.use('/api/operations', operationsRouter);
   app.use('/api/simulation', simulationRouter);
   app.use('/api/routes', routingRouter);
   app.use('/api/incidents', incidentsRouter);

@@ -144,6 +144,8 @@ export function getCurrentState(): StadiumState {
 export function setMatchPhase(phase: MatchPhase) {
   state.matchPhase = phase;
   state.tickCount = 0; // reset ticks for the new phase
+  state.zones = state.zones.map(zone => ({ ...zone }));
+  state.gates = state.gates.map(gate => ({ ...gate }));
   applyPhaseTargets();
   recalculateCrowdMetrics();
 }
@@ -265,98 +267,127 @@ function applyPhaseTargets() {
 
 export function advanceSimulation() {
   state.tickCount += 1;
-  
-  // Deterministic oscillation and movement to simulate life
-  state.zones.forEach((zone, index) => {
-    // Slight fluctuation based on tickCount and index to avoid exact static values
+
+  state.zones = state.zones.map((zone, index) => {
     const delta = Math.sin(state.tickCount + index) * (zone.capacity * 0.02);
-    zone.occupancy = Math.max(0, Math.min(zone.capacity, Math.round(zone.occupancy + delta)));
+    const nextOccupancy = Math.max(
+      0,
+      Math.min(zone.capacity, Math.round(zone.occupancy + delta)),
+    );
+
+    return {
+      ...zone,
+      occupancy: nextOccupancy,
+    };
   });
 
-  state.gates.forEach((gate, index) => {
+  state.gates = state.gates.map((gate, index) => {
     const delta = Math.cos(state.tickCount + index) * (gate.capacity * 0.015);
-    gate.occupancy = Math.max(0, Math.min(gate.capacity, Math.round(gate.occupancy + delta)));
+    const nextOccupancy = Math.max(
+      0,
+      Math.min(gate.capacity, Math.round(gate.occupancy + delta)),
+    );
+
+    return {
+      ...gate,
+      occupancy: nextOccupancy,
+    };
   });
-  
+
   recalculateCrowdMetrics();
 }
 
 export function triggerScenario(scenario: 'GATE_CONGESTION' | 'MEDICAL_INCIDENT' | 'ROUTE_CLOSURE' | 'EXIT_SURGE') {
-  // Add scenario logic
   const nowStr = new Date().toISOString();
-  
+
   switch (scenario) {
-    case 'GATE_CONGESTION':
-      // Congest Gate A and Plaza North
+    case 'GATE_CONGESTION': {
       const gateA = state.gates.find(g => g.id === 'GATE_A');
       if (gateA) {
         gateA.status = 'RESTRICTED';
-        gateA.occupancy = gateA.capacity * 0.95; // highly congested
+        gateA.occupancy = Math.round(gateA.capacity * 0.95);
         gateA.trend = 'RAPIDLY_RISING';
       }
+
       const plazaN = state.zones.find(z => z.id === 'PLAZA_NORTH');
       if (plazaN) {
-        plazaN.occupancy = plazaN.capacity * 0.90;
+        plazaN.occupancy = Math.round(plazaN.capacity * 0.90);
         plazaN.trend = 'RAPIDLY_RISING';
       }
-      state.incidents.push({
-        id: `scen_gate_cong_${state.tickCount}`,
-        zoneId: 'PLAZA_NORTH',
-        title: 'Severe Gate A Queue Congestion',
-        severity: 'HIGH',
-        description: 'Gate A queue times exceeded 20 minutes due to reader malfunctions. Fans redirected.',
-        active: true,
-        timestamp: nowStr,
-      });
-      break;
 
-    case 'MEDICAL_INCIDENT':
-      // Medical incident in Stand East
-      state.incidents.push({
-        id: `scen_med_${state.tickCount}`,
-        zoneId: 'STAND_EAST',
-        title: 'Cardiac Emergency Stand East',
-        severity: 'CRITICAL',
-        description: 'First responders dispatched to Section E4 row 12. Keep access lanes clear.',
-        active: true,
-        timestamp: nowStr,
-      });
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_gate_cong_${state.tickCount}`,
+          zoneId: 'PLAZA_NORTH',
+          title: 'Severe Gate A Queue Congestion',
+          severity: 'HIGH',
+          description: 'Gate A queue times exceeded 20 minutes due to reader malfunctions. Fans redirected.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
+      break;
+    }
+
+    case 'MEDICAL_INCIDENT': {
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_med_${state.tickCount}`,
+          zoneId: 'STAND_EAST',
+          title: 'Cardiac Emergency Stand East',
+          severity: 'CRITICAL',
+          description: 'First responders dispatched to Section E4 row 12. Keep access lanes clear.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
+
       const standE = state.zones.find(z => z.id === 'STAND_EAST');
       if (standE) {
         standE.trend = 'STABLE';
       }
       break;
+    }
 
-    case 'ROUTE_CLOSURE':
-      // Close Emergency Corridor and trigger routing alerts
-      state.incidents.push({
-        id: `scen_route_close_${state.tickCount}`,
-        zoneId: 'EMERGENCY_CORRIDOR',
-        title: 'Emergency Corridor Blocked',
-        severity: 'HIGH',
-        description: 'Structural inspection underway in Emergency Corridor. Sector closed to public.',
-        active: true,
-        timestamp: nowStr,
-      });
+    case 'ROUTE_CLOSURE': {
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_route_close_${state.tickCount}`,
+          zoneId: 'EMERGENCY_CORRIDOR',
+          title: 'Emergency Corridor Blocked',
+          severity: 'HIGH',
+          description: 'Structural inspection underway in Emergency Corridor. Sector closed to public.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
+
       const corridor = state.zones.find(z => z.id === 'EMERGENCY_CORRIDOR');
       if (corridor) {
-        corridor.occupancy = 0; // empty
+        corridor.occupancy = 0;
       }
       break;
+    }
 
-    case 'EXIT_SURGE':
-      // Shift directly to EXIT_SURGE phase
+    case 'EXIT_SURGE': {
       setMatchPhase('EXIT_SURGE');
-      state.incidents.push({
-        id: `scen_exit_surge_${state.tickCount}`,
-        zoneId: 'METRO_STATION',
-        title: 'Metro Station Platform Surge',
-        severity: 'HIGH',
-        description: 'Extremely high passenger volume at Metro Station. Ingress restrictions in place.',
-        active: true,
-        timestamp: nowStr,
-      });
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_exit_surge_${state.tickCount}`,
+          zoneId: 'METRO_STATION',
+          title: 'Metro Station Platform Surge',
+          severity: 'HIGH',
+          description: 'Extremely high passenger volume at Metro Station. Ingress restrictions in place.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
       break;
+    }
   }
 
   recalculateCrowdMetrics();
@@ -372,7 +403,7 @@ export function reportIncident(incidentData: Omit<Incident, 'id' | 'active' | 't
     active: true,
     timestamp: new Date().toISOString(),
   };
-  state.incidents.push(newIncident);
+  state.incidents = [...state.incidents, newIncident];
   recalculateCrowdMetrics();
   return newIncident;
 }

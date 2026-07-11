@@ -1,5 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { Activity, AlertTriangle, ShieldAlert, Users } from 'lucide-react';
 import { BackLink } from '@/components/BackLink';
+import { AIResponseCard } from '@/components/ui/AIResponseCard';
+import { AlertBanner } from '@/components/ui/AlertBanner';
+import { ChatBubble } from '@/components/ui/ChatBubble';
+import { FloatingAssistant } from '@/components/ui/FloatingAssistant';
+import { KpiCard } from '@/components/ui/KpiCard';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import {
   StadiumState,
   OperationalDecision,
@@ -170,9 +181,6 @@ export function OperationsPage() {
     // Open modal with loading
     setBroadcastLoading(true);
     setBroadcastText('');
-    
-    // Disable body scroll safely while modal is open
-    document.body.style.overflow = 'hidden';
 
     try {
       const res = await fetch('/api/ai/broadcast', {
@@ -194,21 +202,27 @@ export function OperationsPage() {
 
   const closeBroadcastModal = () => {
     setBroadcastText(null);
-    // Restore body scroll safely
-    document.body.style.overflow = '';
   };
 
   if (!state) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-slate-900 p-8 text-white">
-        <p className="text-lg animate-pulse" role="status">Loading ArenaFlow Command Center...</p>
+      <div className="flex flex-1 items-center justify-center bg-slate-950 p-8 text-white">
+        <LoadingState label="Loading ArenaFlow Command Center..." />
       </div>
     );
   }
 
   const selectedZone = state.zones.find(z => z.id === selectedZoneId);
   const selectedInsight = insights.find(i => i.zoneId === selectedZoneId);
-  const activeIncidents = state.incidents.filter(i => i.active);
+  const activeIncidents = Array.from(
+    new Map(state.incidents.filter(i => i.active).map(incident => [incident.id, incident])).values(),
+  );
+  const avgOccupancyPct = Math.round(
+    state.zones.reduce((total, zone) => total + Math.round((zone.occupancy / zone.capacity) * 100), 0) /
+      state.zones.length,
+  );
+  const criticalZones = state.zones.filter(zone => zone.riskScore >= 80).length;
+  const atRiskZones = state.zones.filter(zone => zone.riskScore >= 60).length;
 
   // Helper colors for risk levels
   const getRiskColorClass = (riskScore: number) => {
@@ -233,10 +247,16 @@ export function OperationsPage() {
           <div className="flex items-center gap-3">
             <BackLink label="Back to Platform Launcher" />
             <div className="h-6 w-px bg-slate-700" />
-            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-ping" />
-              ArenaFlow Command Operations
-            </h1>
+            <div className="flex flex-col gap-1">
+              <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-ping" />
+                ArenaFlow Command Operations
+              </h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge label={state.matchPhase.replace(/_/g, ' ')} tone={state.matchPhase === 'MATCH_ACTIVE' ? 'warning' : 'neutral'} />
+                <StatusBadge label={`Tick ${state.tickCount}`} tone="success" />
+              </div>
+            </div>
           </div>
 
           {/* Simulation Controllers */}
@@ -312,27 +332,86 @@ export function OperationsPage() {
         </div>
       </section>
 
+      <section className="mx-auto w-full max-w-7xl px-6 pt-6" aria-label="Operations overview">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            label="Live incidents"
+            value={String(activeIncidents.length)}
+            helper="Dispatch-safe alerts tracked in real time"
+            icon={AlertTriangle}
+            tone={activeIncidents.length > 0 ? 'danger' : 'success'}
+          />
+          <KpiCard
+            label="Average occupancy"
+            value={`${avgOccupancyPct}%`}
+            helper="Current crowd pressure across monitored zones"
+            icon={Users}
+          />
+          <KpiCard
+            label="High-risk zones"
+            value={String(atRiskZones)}
+            helper={`${criticalZones} critical zones require immediate review`}
+            icon={ShieldAlert}
+            tone={criticalZones > 0 ? 'warning' : 'default'}
+          />
+          <KpiCard
+            label="Decision queue"
+            value={String(decisions.length)}
+            helper="Operational recommendations generated by rules"
+            icon={Activity}
+          />
+        </div>
+      </section>
+
+      {activeIncidents.length > 0 ? (
+        <section className="mx-auto w-full max-w-7xl px-6 pt-4">
+          <AlertBanner
+            title="Active field response"
+            message={`${activeIncidents.length} live incident${activeIncidents.length === 1 ? '' : 's'} are affecting the current playbook.`}
+            tone="danger"
+          />
+        </section>
+      ) : null}
+
       {/* Main Grid Content */}
       <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 p-6 lg:grid-cols-12">
         {/* LEFT COLUMN: Map & Selected Zone Panel (Col 5) */}
         <section className="flex flex-col gap-6 lg:col-span-5" aria-label="Interactive Stadium Map">
           <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm">
-            <h2 className="text-base font-semibold text-white">Interactive Stadium Topology</h2>
-            <p className="mt-1 text-xs text-slate-400">Select any zone on the map to review telemetry details.</p>
+            <SectionHeader
+              eyebrow="Topology"
+              title="Interactive Stadium Map"
+              description="Select any zone on the map to review telemetry details."
+            />
             
             {/* SVG Stadium Map representation */}
-            <div className="mt-6 flex justify-center bg-slate-950 rounded-lg p-2 border border-slate-800/60">
-              <svg viewBox="0 0 420 300" className="w-full max-w-md h-auto" aria-label="Stadium map layout map">
+            <div className="mt-6 rounded-[28px] border border-slate-800/60 bg-slate-950 p-4">
+              <svg viewBox="0 0 420 300" className="h-auto w-full max-w-md" role="img" aria-labelledby="stadium-map-title stadium-map-desc">
+                <title id="stadium-map-title">ArenaFlow stadium control display</title>
+                <desc id="stadium-map-desc">Interactive SVG map showing transport plazas, entrances, concourses, services, medical posts, and emergency routes color coded by risk.</desc>
+                <defs>
+                  <filter id="selectedGlow">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+                <path d="M105 55 C145 82 148 108 128 137" className="fill-none stroke-blue-500/40" strokeWidth="3" strokeDasharray="6 6" />
+                <path d="M315 55 C275 82 272 108 292 137" className="fill-none stroke-blue-500/40" strokeWidth="3" strokeDasharray="6 6" />
+                <path d="M122 250 C176 282 244 282 298 250" className="fill-none stroke-emerald-400/45" strokeWidth="4" strokeLinecap="round" />
                 {/* Outer Plaza and Transport Connections */}
                 <rect x="10" y="10" width="100" height="40" rx="4"
                   onClick={() => setSelectedZoneId('METRO_STATION')}
-                  className={`cursor-pointer stroke-2 stroke-slate-800 transition-colors ${selectedZoneId === 'METRO_STATION' ? 'stroke-blue-400' : ''} ${getRiskColorClass(state.zones.find(z => z.id === 'METRO_STATION')?.riskScore || 0)}`} />
-                <text x="25" y="34" className="fill-white text-[9px] pointer-events-none font-medium">🚇 Metro Plaza</text>
+                  className={`cursor-pointer stroke-2 stroke-slate-800 transition hover:opacity-80 ${selectedZoneId === 'METRO_STATION' ? 'stroke-blue-300' : ''} ${getRiskColorClass(state.zones.find(z => z.id === 'METRO_STATION')?.riskScore || 0)}`}
+                  filter={selectedZoneId === 'METRO_STATION' ? 'url(#selectedGlow)' : undefined} />
+                <text x="25" y="34" className="fill-white text-[9px] pointer-events-none font-medium">Metro Plaza</text>
 
                 <rect x="310" y="10" width="100" height="40" rx="4"
                   onClick={() => setSelectedZoneId('BUS_STATION')}
-                  className={`cursor-pointer stroke-2 stroke-slate-800 transition-colors ${selectedZoneId === 'BUS_STATION' ? 'stroke-blue-400' : ''} ${getRiskColorClass(state.zones.find(z => z.id === 'BUS_STATION')?.riskScore || 0)}`} />
-                <text x="325" y="34" className="fill-white text-[9px] pointer-events-none font-medium">🚌 Bus Terminal</text>
+                  className={`cursor-pointer stroke-2 stroke-slate-800 transition hover:opacity-80 ${selectedZoneId === 'BUS_STATION' ? 'stroke-blue-300' : ''} ${getRiskColorClass(state.zones.find(z => z.id === 'BUS_STATION')?.riskScore || 0)}`} />
+                <text x="325" y="34" className="fill-white text-[9px] pointer-events-none font-medium">Bus Terminal</text>
 
                 {/* Entry Plazas */}
                 <ellipse cx="100" cy="90" rx="40" ry="25"
@@ -372,19 +451,30 @@ export function OperationsPage() {
                 <circle cx="140" cy="180" r="10"
                   onClick={() => setSelectedZoneId('LIFT_NORTH')}
                   className={`cursor-pointer stroke-1 stroke-slate-700 transition-colors ${selectedZoneId === 'LIFT_NORTH' ? 'stroke-blue-400' : ''} ${getRiskColorClass(state.zones.find(z => z.id === 'LIFT_NORTH')?.riskScore || 0)}`} />
-                <text x="137" y="183" className="fill-white text-[8px] pointer-events-none">🛗</text>
+                <text x="134" y="183" className="fill-white text-[8px] pointer-events-none">LIFT</text>
 
                 <rect x="185" y="210" width="50" height="12" rx="2"
                   onClick={() => setSelectedZoneId('FOOD_COURT_A')}
                   className={`cursor-pointer stroke-1 stroke-slate-800 transition-colors ${selectedZoneId === 'FOOD_COURT_A' ? 'stroke-blue-400' : ''} ${getRiskColorClass(state.zones.find(z => z.id === 'FOOD_COURT_A')?.riskScore || 0)}`} />
-                <text x="195" y="219" className="fill-white text-[7px] pointer-events-none">🍔 Food A</text>
+                <text x="196" y="219" className="fill-white text-[7px] pointer-events-none">Food A</text>
+
+                <circle cx="282" cy="195" r="8" className="fill-blue-500/70 stroke-blue-200" />
+                <text x="274" y="199" className="fill-white text-[7px] pointer-events-none">MED</text>
+                <circle cx="164" cy="214" r="7" className="fill-amber-500/80 stroke-amber-200" />
+                <text x="157" y="217" className="fill-slate-950 text-[6px] pointer-events-none">WC</text>
 
                 {/* Emergency Corridor (Bottom Left link) */}
                 <line x1="100" y1="115" x2="150" y2="240" strokeWidth="4"
                   onClick={() => setSelectedZoneId('EMERGENCY_CORRIDOR')}
                   className={`cursor-pointer stroke-slate-700 transition-colors ${selectedZoneId === 'EMERGENCY_CORRIDOR' ? 'stroke-blue-400' : ''} ${state.incidents.some(i => i.zoneId === 'EMERGENCY_CORRIDOR' && i.active) ? 'stroke-red-600' : ''}`} />
-                <text x="80" y="235" className="fill-slate-400 text-[8px] pointer-events-none">Emergency Way</text>
+                <text x="80" y="235" className="fill-slate-400 text-[8px] pointer-events-none">Emergency Route</text>
               </svg>
+              <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] text-slate-300 sm:grid-cols-4">
+                <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Stable</span>
+                <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Watch</span>
+                <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-orange-500" /> High</span>
+                <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Critical</span>
+              </div>
             </div>
           </div>
 
@@ -442,10 +532,11 @@ export function OperationsPage() {
         <section className="flex flex-col gap-6 lg:col-span-4" aria-label="Command Alerts & Decisions">
           {/* Active Incidents */}
           <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm">
-            <h2 className="text-base font-semibold text-white flex items-center justify-between">
-              Active Field Incidents
-              <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">{activeIncidents.length}</span>
-            </h2>
+            <SectionHeader
+              eyebrow="Response"
+              title="Active Field Incidents"
+              action={<StatusBadge label={String(activeIncidents.length)} tone={activeIncidents.length > 0 ? 'danger' : 'success'} />}
+            />
             
             <div className="mt-4 max-h-[160px] overflow-y-auto space-y-2 pr-1">
               {activeIncidents.length === 0 ? (
@@ -467,11 +558,12 @@ export function OperationsPage() {
 
           {/* Operational Decisions */}
           <div className="flex-1 rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm flex flex-col">
-            <h2 className="text-base font-semibold text-white flex items-center justify-between">
-              Operational Recommendations
-              <span className="rounded bg-blue-900/50 px-2.5 py-0.5 text-xs text-blue-300">{decisions.length}</span>
-            </h2>
-            <p className="mt-1 text-xs text-slate-400">Rules evaluated automatically based on simulated metrics.</p>
+            <SectionHeader
+              eyebrow="Decision Engine"
+              title="Operational Recommendations"
+              description="Rules evaluated automatically based on simulated metrics."
+              action={<StatusBadge label={String(decisions.length)} tone="neutral" />}
+            />
 
             <div className="mt-4 flex-1 overflow-y-auto space-y-4 max-h-[380px] pr-1">
               {decisions.length === 0 ? (
@@ -518,13 +610,14 @@ export function OperationsPage() {
 
         {/* RIGHT COLUMN: AI Copilot Sidebar Panel (Col 3) */}
         <section className="flex flex-col gap-6 lg:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm max-h-[700px]" aria-label="AI Command Copilot">
-          <h2 className="text-base font-semibold text-white flex items-center justify-between">
-            AI Operations Copilot
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          </h2>
+          <SectionHeader
+            eyebrow="AI"
+            title="Operations Copilot"
+            action={<span className="h-2 w-2 rounded-full bg-emerald-500" />}
+          />
 
           {/* Situation Brief Box */}
-          <div className="bg-slate-950 rounded-lg p-3.5 border border-slate-800 flex flex-col max-h-[220px]">
+          <div className="bg-slate-950 rounded-lg p-3.5 border border-slate-800 flex flex-col gap-3 max-h-[420px]">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Live Briefing</h3>
               {!briefAiPowered && (
@@ -534,9 +627,13 @@ export function OperationsPage() {
               )}
             </div>
             
-            <div className="mt-2 text-xs text-slate-300 overflow-y-auto leading-relaxed flex-1 whitespace-pre-line pr-1">
-              {briefingLoading ? 'Analyzing stadium telemetry and generating brief...' : briefText}
-            </div>
+            {briefingLoading ? (
+              <LoadingSkeleton lines={4} />
+            ) : (
+              <div className="overflow-y-auto pr-1">
+                <AIResponseCard content={briefText} title="ArenaFlow AI" />
+              </div>
+            )}
 
             <button
               onClick={handleGenerateBrief}
@@ -556,18 +653,13 @@ export function OperationsPage() {
                 <p className="text-slate-500 text-center py-8">Ask Copilot questions about incidents, metro congestion, or safety steps.</p>
               )}
               {chatHistory.map((msg, idx) => (
-                <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`rounded px-3 py-2 max-w-[90%] whitespace-pre-line ${
-                    msg.sender === 'user' 
-                      ? 'bg-blue-900 text-white' 
-                      : 'bg-slate-800 text-slate-100'
-                  }`}>
-                    {msg.text}
-                  </div>
-                  {!msg.aiPowered && msg.sender === 'copilot' && (
-                    <span className="text-[8px] text-amber-500 mt-0.5">⚠️ Offline Deterministic Guide</span>
+                <ChatBubble key={`${msg.sender}-${idx}-${msg.text.slice(0, 12)}`} role={msg.sender === 'user' ? 'user' : 'copilot'} fallback={!msg.aiPowered}>
+                  {msg.sender === 'copilot' ? (
+                    <MarkdownRenderer content={msg.text} />
+                  ) : (
+                    <span className="whitespace-pre-line">{msg.text}</span>
                   )}
-                </div>
+                </ChatBubble>
               ))}
               {chatLoading && (
                 <p className="text-slate-400 text-[10px] animate-pulse">Copilot is thinking...</p>
@@ -595,6 +687,8 @@ export function OperationsPage() {
         </section>
       </div>
 
+      <FloatingAssistant role="OPERATIONS" selectedZoneId={selectedZoneId} stadiumState={state} />
+
       {/* Broadcast Announcement Modal Popup Overlay */}
       {broadcastText !== null && (
         <div
@@ -615,12 +709,12 @@ export function OperationsPage() {
               )}
             </div>
 
-            <div className="mt-4 bg-slate-950 rounded-lg border border-slate-850 p-4 text-sm text-slate-200 leading-relaxed font-sans min-h-[140px] flex items-center justify-center whitespace-pre-wrap">
+            <div className="mt-4 bg-slate-950 rounded-lg border border-slate-850 p-4 text-sm text-slate-200 leading-relaxed font-sans min-h-[140px]">
               {broadcastLoading ? (
-                <p className="text-slate-400 animate-pulse">Drafting emergency communication text with AI...</p>
-              ) : (
-                broadcastText
-              )}
+                <LoadingSkeleton lines={3} />
+              ) : broadcastText ? (
+                <AIResponseCard content={broadcastText} title="Public Address Draft" />
+              ) : null}
             </div>
 
             {!broadcastAiPowered && !broadcastLoading && (
