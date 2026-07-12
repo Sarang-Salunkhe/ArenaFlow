@@ -8,35 +8,65 @@ interface Message {
 
 export async function callOpenAI(messages: Message[]): Promise<string> {
   const apiKey = env.OPENAI_API_KEY;
-  const model = env.OPENAI_MODEL || 'gpt-4o-mini';
+  const model = env.OPENAI_MODEL || 'gpt-5-mini';
 
   if (!apiKey || apiKey === 'your_openai_api_key_here') {
     throw new Error('OpenAI API Key is missing or default placeholder');
   }
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: messages,
-      temperature: 0.3,
-      max_tokens: 800,
-    }),
-  });
+  const response = await fetch(
+    'https://api.openai.com/v1/responses',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        input: messages.map((m) => ({
+          role: m.role,
+          content: [
+            {
+              type: "input_text",
+              text: m.content,
+            },
+          ],
+        })),
+        max_output_tokens: 800,
+      }),
+    }
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+
+    console.error('OpenAI API Error', {
+      status: response.status,
+      body: errorText,
+    });
+
+    throw new Error(
+      `OpenAI API error (${response.status}): ${errorText}`
+    );
   }
 
   const data = (await response.json()) as any;
-  const content = data.choices?.[0]?.message?.content;
+
+  // Responses API returns output_text when available.
+  // Fallbacks handle other valid response shapes.
+  const content =
+  typeof data.output_text === 'string'
+    ? data.output_text
+    : data.output
+        ?.flatMap((item: any) => item.content ?? [])
+        ?.find((part: any) => part.type === 'output_text')
+        ?.text ??
+      '';
+
   if (!content) {
-    throw new Error('Invalid response format from OpenAI API');
+    console.error('Unexpected OpenAI response:', data);
+    throw new Error('Invalid response format from OpenAI Responses API');
   }
 
   return content.trim();
