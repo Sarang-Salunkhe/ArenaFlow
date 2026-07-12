@@ -1,3 +1,5 @@
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import cors from 'cors';
 import express from 'express';
 import path from 'node:path';
@@ -13,6 +15,19 @@ import { aiRouter } from './routes/ai.js';
 
 export function createApp() {
   const app = express();
+
+  // Security headers
+  app.use(helmet());
+
+  // Rate limiting
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,                 // 100 requests/IP
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.use('/api', limiter);
 
   app.use(
     cors({
