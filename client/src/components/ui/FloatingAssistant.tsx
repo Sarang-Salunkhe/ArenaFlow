@@ -106,7 +106,7 @@ export function FloatingAssistant({ role, selectedZoneId, stadiumState }: Floati
     setLoading(true);
 
     try {
-      const response = await fetch('/api/ai/assist', {
+      const response = await fetch(`${API_BASE}/api/ai/assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role, userPrompt: trimmed, selectedZoneId }),

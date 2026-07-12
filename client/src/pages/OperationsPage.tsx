@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { API_BASE } from '../config';
 import { 
   Activity, 
   AlertTriangle, 
@@ -78,15 +79,15 @@ export function OperationsPage() {
   // Fetch all live data
   const fetchData = async () => {
     try {
-      const stateRes = await fetch('/api/stadium/state');
+      const stateRes = await fetch(`${API_BASE}/api/stadium/state}`);
       const stateData = await stateRes.json();
       setState(stateData);
 
-      const insightsRes = await fetch('/api/operations/insights');
+      const insightsRes = await fetch(`${API_BASE}/api/operations/insights`);
       const insightsData = await insightsRes.json();
       setInsights(insightsData);
 
-      const decisionsRes = await fetch('/api/operations/decisions');
+      const decisionsRes = await fetch(`${API_BASE}/api/operations/decisions`);
       const decisionsData = await decisionsRes.json();
       setDecisions(decisionsData);
     } catch (err) {
@@ -107,7 +108,7 @@ export function OperationsPage() {
   // Simulation handlers
   const handleAdvanceTick = async () => {
     try {
-      const res = await fetch('/api/simulation/advance', { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/simulation/advance`, { method: 'POST' });
       const data = await res.json();
       setState(data);
       await fetchData();
@@ -118,7 +119,7 @@ export function OperationsPage() {
 
   const handleReset = async () => {
     try {
-      const res = await fetch('/api/simulation/reset', { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/simulation/reset`, { method: 'POST' });
       const data = await res.json();
       setState(data);
       setChatHistory([]);
@@ -131,7 +132,7 @@ export function OperationsPage() {
 
   const handlePhaseChange = async (phase: string) => {
     try {
-      const res = await fetch('/api/simulation/phase', {
+      const res = await fetch(`${API_BASE}/api/simulation/phase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phase }),
@@ -146,7 +147,7 @@ export function OperationsPage() {
 
   const handleTriggerScenario = async (scenario: string) => {
     try {
-      const res = await fetch('/api/simulation/scenario', {
+      const res = await fetch(`${API_BASE}/api/simulation/scenario`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scenario }),
@@ -163,7 +164,7 @@ export function OperationsPage() {
   const handleGenerateBrief = async () => {
     setBriefingLoading(true);
     try {
-      const res = await fetch('/api/ai/brief', {
+      const res = await fetch(`${API_BASE}/api/ai/brief`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'OPERATIONS', selectedZoneId }),
@@ -190,7 +191,7 @@ export function OperationsPage() {
     setChatLoading(true);
 
     try {
-      const res = await fetch('/api/ai/assist', {
+      const res = await fetch(`${API_BASE}/api/ai/assist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'OPERATIONS', userPrompt: userMsg, selectedZoneId }),
@@ -217,7 +218,7 @@ export function OperationsPage() {
     setBroadcastText('');
 
     try {
-      const res = await fetch('/api/ai/broadcast', {
+      const res = await fetch(`${API_BASE}/api/ai/broadcast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decisionId }),

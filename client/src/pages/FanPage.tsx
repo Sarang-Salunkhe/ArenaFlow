@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_BASE } from '../config';
 import { 
   Accessibility, 
   Route, 
@@ -102,7 +103,7 @@ export function FanPage() {
   // Load stadium state for alert banners
   const fetchStadiumState = async () => {
     try {
-      const res = await fetch('/api/stadium/state');
+      const res = await fetch(`${API_BASE}/api/stadium/state`);
       const data = await res.json();
       setStadiumState(data);
     } catch (err) {
@@ -123,7 +124,7 @@ export function FanPage() {
     setAiExplanation('');
 
     try {
-      const res = await fetch('/api/routes/calculate', {
+      const res = await fetch(`${API_BASE}/api/routes/calculate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -162,7 +163,7 @@ export function FanPage() {
     }
 
     try {
-      const res = await fetch('/api/ai/assist', {
+      const res = await fetch(`${API_BASE}/api/ai/assist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -202,7 +203,7 @@ export function FanPage() {
     setChatLoading(true);
 
     try {
-      const res = await fetch('/api/ai/assist', {
+      const res = await fetch(`${API_BASE}/api/ai/assist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
