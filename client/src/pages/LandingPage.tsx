@@ -33,7 +33,7 @@ export function LandingPage() {
         </p>
         <h1
           id="hero-heading"
-          className="mt-3 text-4xl font-bold tracking-tight text-white sm:text-6xl"
+          className="mt-3 fluid-h1 font-black tracking-tight text-white font-sans"
         >
           ArenaFlow
         </h1>
@@ -52,7 +52,7 @@ export function LandingPage() {
         <h2 id="roles-heading" className="sr-only">
           Choose your role
         </h2>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
           {roles.map((role) => (
             <RoleCard key={role.to} {...role} />
           ))}

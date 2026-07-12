@@ -1,5 +1,7 @@
 import cors from 'cors';
 import express from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { env } from './config/env.js';
 import { healthRouter } from './routes/health.js';
 import { stadiumRouter } from './routes/stadium.js';
@@ -30,6 +32,20 @@ export function createApp() {
   app.use('/api/incidents', incidentsRouter);
   app.use('/api/ai', aiRouter);
   app.use('/api/health', healthRouter);
+
+  // Serve static assets in production
+  if (process.env.NODE_ENV === 'production') {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const distPath = path.resolve(__dirname, '../../client/dist');
+    app.use(express.static(distPath));
+    app.get('*', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      if (req.path.startsWith('/api/')) {
+        next();
+        return;
+      }
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
 
   // Global error handler to prevent exposing stack traces
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

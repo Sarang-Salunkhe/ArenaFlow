@@ -14,7 +14,13 @@ const envSchema = z.object({
   OPENAI_MODEL: z.string().default('gpt-4o-mini'),
 });
 
-const parsed = envSchema.safeParse(process.env);
+const isProd = process.env.NODE_ENV === 'production';
+const envToParse = {
+  ...process.env,
+  PORT: isProd ? (process.env.PORT || '8080') : '3001',
+};
+
+const parsed = envSchema.safeParse(envToParse);
 
 if (!parsed.success) {
   console.error('Invalid environment configuration:', parsed.error.flatten().fieldErrors);
