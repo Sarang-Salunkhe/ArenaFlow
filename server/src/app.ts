@@ -53,11 +53,11 @@ export function createApp() {
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
     const distPath = path.resolve(__dirname, '../../client/dist');
     app.use(express.static(distPath));
-    app.get('*', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    app.get('/{*splat}', (req: express.Request, res: express.Response, next: express.NextFunction) => {
       if (req.path.startsWith('/api/')) {
-        next();
-        return;
+        return next();
       }
+
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

@@ -1,86 +1,477 @@
-# ArenaFlow
+# 🏟️ ArenaFlow
 
-ArenaFlow is a GenAI-powered stadium intelligence and operations platform designed for smart stadium operations in major international football tournament environments. It connects deterministic operational engines with contextual AI assistance to support staff, fans, and volunteers through role-based experiences.
+> **AI-Powered Stadium Intelligence & Crowd Operations Platform for FIFA World Cup 2026**
 
-## Current Experience
+ArenaFlow is a next-generation stadium operations platform that combines **deterministic simulation**, **crowd intelligence**, **AI-powered decision support**, and **real-time wayfinding** to improve safety, operational efficiency, and fan experience during large-scale sporting events.
 
-ArenaFlow now presents a finals-ready command platform for high-volume football tournament operations. The backend engines remain deterministic and API-driven, while the frontend provides role-specific experiences for operations staff, fans, and volunteers.
+Designed around the **FIFA World Cup 2026** scenario, ArenaFlow provides dedicated AI assistants for **Operations Teams**, **Volunteers**, and **Fans**, helping each role make better decisions using real-time stadium intelligence.
 
-## Technology Stack
+---
 
-| Layer | Technologies |
-|-------|-------------|
-| Frontend | React, TypeScript, Vite, Tailwind CSS, React Router |
-| Backend | Node.js, Express, TypeScript, Zod |
-| Testing | Vitest, React Testing Library, Supertest |
+# 🎯 Chosen Vertical
 
-## Product Surfaces
+**Smart Cities & Public Safety**
 
-- **Operations Dashboard**: command center layout with live KPIs, active incidents, decision-engine recommendations, an interactive stadium map, PA broadcast generation, and an AI operations copilot.
-- **Fan Experience**: mobile-first match-day companion with live alerts, route calculation, accessibility routing, walking time, nearby service context, route summaries, and AI route explanations.
-- **Volunteer Experience**: mission console with assigned sector posture, priority tasks, dispatch broadcasts, incident reporting, and a volunteer support assistant.
-- **Floating AI Assistant**: role-aware expandable drawer with conversation history, suggested prompts, typing state, fallback labeling, markdown rendering, and structured AI response cards.
+ArenaFlow addresses the challenges of managing large public gatherings inside modern stadiums by providing AI-assisted operational awareness, crowd management, navigation, and volunteer coordination.
 
-## UI Architecture
+The project focuses on:
 
-Reusable frontend components live under `client/src/components/ui`:
+- Crowd Safety
+- Smart Stadium Operations
+- Fan Experience
+- Emergency Response
+- Public Transport Coordination
+- AI-assisted Decision Making
 
-- `KpiCard`, `StatusBadge`, `AlertBanner`, `LoadingSkeleton`, and `LoadingState` define the command-center design primitives.
-- `AIResponseCard`, `MarkdownRenderer`, `ChatBubble`, `PromptSuggestion`, and `FloatingAssistant` handle structured AI output, markdown, chat history, and prompt shortcuts.
-- Page files compose these primitives without changing backend contracts or deterministic engine behavior.
+---
 
-The visual language uses deep navy `#081229`, surface `#101828`, primary blue `#2563EB`, success `#10B981`, warning `#F59E0B`, and danger `#EF4444` with glass panels, soft elevation, accessible focus rings, and reduced-motion support.
+# ❗ Problem Statement
 
-## AI Assistant
+Managing tens of thousands of spectators inside a stadium presents significant operational challenges:
 
-ArenaFlow AI responses are rendered as structured cards instead of long text blocks when the response includes sections such as Situation Summary, Priority, Affected Areas, Recommended Actions, Reasoning, Helpful Tips, and Generated Time. Markdown, bullet lists, numbered lists, bold text, inline code, and code blocks are supported through the local renderer.
+- Crowd congestion
+- Long entry queues
+- Poor wayfinding
+- Volunteer coordination
+- Emergency response
+- Transport management
+- Information overload for operators
 
-If OpenAI credentials are unavailable, the assistant surfaces deterministic fallback responses from the existing backend while clearly labeling fallback mode in the UI.
+Traditional dashboards present large amounts of data but often lack intelligent interpretation and actionable recommendations.
 
-## Deterministic Engine
+ArenaFlow solves this problem by combining deterministic simulation with GPT-5 powered AI assistance.
 
-Operational facts are produced by the existing simulator, crowd intelligence, routing, and decision engines. The frontend consumes those outputs through REST APIs and does not alter routing algorithms, simulator logic, decision logic, or API contracts.
+---
 
-## Screenshots
+# 🧠 Approach & Logic
 
-Add current demo screenshots here after running the app locally:
+ArenaFlow follows a **hybrid AI architecture**.
 
-- `docs/screenshots/operations-dashboard.png`
-- `docs/screenshots/fan-companion.png`
-- `docs/screenshots/volunteer-mission-console.png`
-- `docs/screenshots/floating-ai-assistant.png`
+Instead of allowing the AI model to invent operational information, the system first generates deterministic facts through multiple simulation engines.
 
-## Local Setup
+The workflow is:
 
-1. **Clone the repository**
+1. Stadium Simulation Engine generates live stadium state.
+2. Crowd Intelligence Engine analyzes congestion and occupancy.
+3. Routing Engine computes safe navigation paths.
+4. Decision Engine evaluates operational risks.
+5. AI Orchestrator builds structured context.
+6. GPT-5 Mini converts structured data into human-friendly recommendations.
 
-   ```bash
-   git clone <repository-url>
-   cd ArenaFlow
-   ```
+This architecture ensures:
 
-2. **Install dependencies**
+- Accurate AI responses
+- Reliable operational decisions
+- Explainable recommendations
+- Deterministic fallback if AI becomes unavailable
 
-   ```bash
-   npm install
-   ```
+---
 
-3. **Configure environment**
+# ⚙️ How the Solution Works
 
-   ```bash
-   cp .env.example .env
-   ```
+The system operates through the following pipeline:
 
-   Adjust `PORT` and `CLIENT_ORIGIN` if needed. OpenAI variables are placeholders for future milestones.
+```
+User
+   │
+   ▼
+React Frontend
+   │
+   ▼
+Express REST API
+   │
+   ▼
+AI Orchestrator
+   │
+   ├──────────────┐
+   ▼              ▼
+Simulation     Decision Engine
+Engine
+   │
+   ▼
+Routing Engine
+   │
+   ▼
+Context Builder
+   │
+   ▼
+OpenAI GPT-5 Mini
+   │
+   ▼
+Natural Language Response
+```
 
-## Development Commands
+### Operations Dashboard
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start frontend and backend together |
-| `npm run dev:client` | Start Vite dev server (default `http://localhost:5173`) |
-| `npm run dev:server` | Start Express API (default `http://localhost:3001`) |
-| `npm test` | Run all workspace tests |
-| `npm run build` | Build frontend and backend for production |
+- Live stadium overview
+- AI operational briefings
+- Incident monitoring
+- Transport status
+- Crowd analytics
+- Decision support
 
-See [docs/architecture.md](docs/architecture.md) for the system pipeline.
+### Fan Dashboard
+
+- Smart navigation
+- Route optimization
+- Accessibility guidance
+- Congestion avoidance
+- Walking time estimation
+
+### Volunteer Dashboard
+
+- AI task briefings
+- Incident reporting
+- Operational guidance
+- Zone responsibilities
+
+---
+
+# 📌 Assumptions Made
+
+The following assumptions were made while developing ArenaFlow:
+
+- The stadium represents a FIFA World Cup 2026 venue.
+- Crowd movement and occupancy are generated through simulation.
+- Transport queues are simulated.
+- Sensor data is represented through deterministic engines.
+- Users belong to one of three roles:
+  - Operations
+  - Volunteer
+  - Fan
+- GPT-5 Mini provides AI assistance.
+- If OpenAI becomes unavailable, the application automatically switches to a deterministic fallback engine.
+- The current implementation targets a single stadium but can be extended to multiple venues.
+
+---
+
+# ✨ Features
+
+## 🤖 AI Features
+
+- GPT-5 Mini Integration
+- AI Operations Copilot
+- AI Fan Assistant
+- AI Volunteer Assistant
+- Context-aware Responses
+- Automatic Fallback Engine
+
+---
+
+## 🏟️ Stadium Intelligence
+
+- Live Stadium Simulation
+- Crowd Density Analysis
+- Risk Assessment
+- Occupancy Monitoring
+- Incident Detection
+- Operational Dashboard
+
+---
+
+## 🧭 Smart Routing
+
+- Safe Navigation
+- Accessibility-aware Routing
+- Walking Time Estimation
+- Congestion-aware Paths
+- Route Guidance
+
+---
+
+## 🚇 Transport Intelligence
+
+- Metro Queue Monitoring
+- Bus Queue Monitoring
+- Gate Analytics
+- Entry & Exit Flow Monitoring
+
+---
+
+## 📱 User Experience
+
+- Fully Responsive UI
+- Mobile Friendly
+- Tablet Support
+- Desktop Dashboard
+- Floating AI Assistant
+- Modern FIFA-inspired Design
+
+---
+
+# 💡 Innovation
+
+ArenaFlow combines deterministic simulation with Generative AI rather than relying solely on an LLM.
+
+Unlike traditional AI chatbots, ArenaFlow grounds every recommendation in structured operational data generated by simulation and decision engines.
+
+This significantly improves:
+
+- Reliability
+- Explainability
+- Operational Safety
+- AI Accuracy
+
+The deterministic fallback system ensures uninterrupted operation even if the AI service becomes unavailable.
+
+---
+
+# 🏗️ System Architecture
+
+```
+                    ArenaFlow
+
+               React + Vite Frontend
+                        │
+                        ▼
+                 Express REST API
+                        │
+         ┌──────────────┼──────────────┐
+         ▼              ▼              ▼
+ Simulation      Routing Engine   Decision Engine
+     │                                   │
+     └──────────────┬────────────────────┘
+                    ▼
+             AI Orchestrator
+                    │
+                    ▼
+          OpenAI GPT-5 Mini (Responses API)
+                    │
+                    ▼
+          Role-specific AI Response
+```
+
+---
+
+# 🛠️ Technology Stack
+
+## Frontend
+
+- React
+- TypeScript
+- Vite
+- CSS
+
+## Backend
+
+- Node.js
+- Express.js
+- TypeScript
+
+## AI
+
+- OpenAI Responses API
+- GPT-5 Mini
+
+## Validation
+
+- Zod
+
+## Security
+
+- Helmet
+- Express Rate Limit
+- CORS
+
+## Testing
+
+- Vitest
+
+## Version Control
+
+- Git
+- GitHub
+
+---
+
+# 📂 Project Structure
+
+```
+ArenaFlow/
+
+│
+├── client/
+│   ├── src/
+│   ├── components/
+│   ├── pages/
+│   └── context/
+│
+├── server/
+│   ├── engines/
+│   ├── routes/
+│   ├── services/
+│   ├── config/
+│   └── test/
+│
+├── docs/
+│
+├── tests/
+│
+├── package.json
+└── README.md
+```
+
+---
+
+# 📸 Screenshots
+
+*(Add screenshots after deployment)*
+
+## Landing Page
+
+`docs/screenshots/landing.png`
+
+## Operations Dashboard
+
+`docs/screenshots/operations.png`
+
+## Fan Dashboard
+
+`docs/screenshots/fan.png`
+
+## Volunteer Dashboard
+
+`docs/screenshots/volunteer.png`
+
+## Mobile Responsive View
+
+`docs/screenshots/mobile.png`
+
+---
+
+# 🚀 Installation
+
+Clone the repository
+
+```bash
+git clone https://github.com/Sarang-Salunkhe/ArenaFlow.git
+
+cd ArenaFlow
+```
+
+Install dependencies
+
+```bash
+npm install
+```
+
+---
+
+# 🔐 Environment Variables
+
+Create a `.env` file in the project root.
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+
+OPENAI_MODEL=gpt-5-mini
+
+CLIENT_ORIGIN=http://localhost:5173
+
+PORT=3001
+```
+
+---
+
+# ▶️ Running the Project
+
+Start both frontend and backend:
+
+```bash
+npm run dev
+```
+
+Or individually:
+
+Frontend
+
+```bash
+cd client
+npm run dev
+```
+
+Backend
+
+```bash
+cd server
+npm run dev
+```
+
+---
+
+# 🧪 Testing
+
+ArenaFlow includes automated unit and integration tests.
+
+Run all tests:
+
+```bash
+npm test
+```
+
+### Current Test Results
+
+✅ 26 Automated Tests Passing
+
+### Backend
+
+- API Tests
+- Engine Tests
+- Health Tests
+
+### Frontend
+
+- Application Rendering Test
+
+---
+
+# 🔒 Security
+
+ArenaFlow follows security best practices:
+
+- Helmet Security Headers
+- API Rate Limiting
+- Environment Variables
+- Backend-only AI Requests
+- Zod Input Validation
+- CORS Protection
+- Graceful AI Fallback
+
+---
+
+# 📈 Future Scope
+
+- Multi-stadium support
+- WebSocket real-time updates
+- Predictive crowd analytics
+- Digital Twin visualization
+- IoT Sensor Integration
+- Computer Vision crowd monitoring
+- Live GPS navigation
+- AI Streaming Responses
+- PDF Report Generation
+- Advanced Analytics Dashboard
+
+---
+
+# 👨‍💻 Contributor
+
+**Sarang Salunkhe**
+
+---
+
+# 📄 License
+
+This project is licensed under the **MIT License**.
+
+---
+
+# ⭐ Acknowledgements
+
+- OpenAI
+- React
+- Vite
+- Express.js
+- Node.js
+- TypeScript
+- Vitest
