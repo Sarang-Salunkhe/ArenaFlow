@@ -2,8 +2,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cors from 'cors';
 import express from 'express';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+// import path from 'node:path';
+// import { fileURLToPath } from 'node:url';
 import { healthRouter } from './routes/health.js';
 import { stadiumRouter } from './routes/stadium.js';
 import { operationsRouter } from './routes/operations.js';
@@ -61,18 +61,18 @@ export function createApp() {
   app.use('/api/health', healthRouter);
 
   // Serve static assets in production
-  if (process.env.NODE_ENV === 'production') {
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const distPath = path.resolve(__dirname, '../../client/dist');
-    app.use(express.static(distPath));
-    app.get('/{*splat}', (req: express.Request, res: express.Response, next: express.NextFunction) => {
-      if (req.path.startsWith('/api/')) {
-        return next();
-      }
+  // if (process.env.NODE_ENV === 'production') {
+  //   const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  //   const distPath = path.resolve(__dirname, '../../client/dist');
+  //   app.use(express.static(distPath));
+  //   app.get('/{*splat}', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  //     if (req.path.startsWith('/api/')) {
+  //       return next();
+  //     }
 
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
+  //     res.sendFile(path.join(distPath, 'index.html'));
+  //   });
+  // }
 
   // Global error handler to prevent exposing stack traces
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
