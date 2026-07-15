@@ -79,7 +79,7 @@ export function OperationsPage() {
   // Fetch all live data
   const fetchData = async () => {
     try {
-      const stateRes = await fetch(`${API_BASE}/api/stadium/state}`);
+      const stateRes = await fetch(`${API_BASE}/api/stadium/state`);
       const stateData = await stateRes.json();
       setState(stateData);
 
