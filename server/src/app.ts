@@ -15,6 +15,8 @@ import { aiRouter } from './routes/ai.js';
 export function createApp() {
   const app = express();
 
+  app.set('trust proxy', 1);
+
   // Security headers
   app.use(helmet());
 
@@ -31,8 +33,8 @@ export function createApp() {
   const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://arenaflow-five.vercel.app',
-  ];
+    process.env.CLIENT_ORIGIN,
+  ].filter(Boolean);
 
   app.use(
     cors({
