@@ -4,7 +4,6 @@ import cors from 'cors';
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { env } from './config/env.js';
 import { healthRouter } from './routes/health.js';
 import { stadiumRouter } from './routes/stadium.js';
 import { operationsRouter } from './routes/operations.js';
