@@ -7,6 +7,7 @@ import {
   setMatchPhase,
   triggerScenario,
 } from '../engines/simulator.js';
+import { broadcastTelemetryUpdate } from '../services/websocketService.js';
 
 export const simulationRouter = Router();
 
@@ -15,6 +16,7 @@ simulationRouter.post('/advance', (_req, res) => {
   try {
     advanceSimulation();
     const state = getCurrentState();
+    broadcastTelemetryUpdate();
     res.json(state);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Internal Server Error' });
@@ -26,6 +28,7 @@ simulationRouter.post('/reset', (_req, res) => {
   try {
     resetSimulation();
     const state = getCurrentState();
+    broadcastTelemetryUpdate();
     res.json(state);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Internal Server Error' });
@@ -55,6 +58,7 @@ simulationRouter.post('/phase', (req, res) => {
   try {
     setMatchPhase(result.data.phase);
     const state = getCurrentState();
+    broadcastTelemetryUpdate();
     res.json(state);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Internal Server Error' });
@@ -77,8 +81,10 @@ simulationRouter.post('/scenario', (req, res) => {
   try {
     triggerScenario(result.data.scenario);
     const state = getCurrentState();
+    broadcastTelemetryUpdate();
     res.json(state);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
+

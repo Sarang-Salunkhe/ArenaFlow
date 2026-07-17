@@ -20,7 +20,10 @@ import { useAssistant } from '../context/AssistantContext';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { useTelemetryWebSocket } from '../hooks/useTelemetryWebSocket';
+import { StadiumMap } from '@/components/StadiumMap';
 import { StadiumState, RouteResult, CopilotResponse } from '../types';
+
 
 const SELECTABLE_NODES = [
   { id: 'METRO_STATION', name: 'Metro Plaza Entrance' },
@@ -68,11 +71,16 @@ const DEFAULT_SERVICES = [
 
 export function FanPage() {
   const [stadiumState, setStadiumState] = useState<StadiumState | null>(null);
+
+  const { connected } = useTelemetryWebSocket((payload) => {
+    setStadiumState(payload.state);
+  });
   
   // Navigation form state
   const [startNode, setStartNode] = useState<string>('METRO_STATION');
   const [destNode, setDestNode] = useState<string>('STAND_EAST');
   const [accessibilityRequired, setAccessibilityRequired] = useState<boolean>(false);
+
   
   const { setSelectedZoneId: setGlobalZoneId, setStadiumState: setGlobalStadiumState } = useAssistant();
 
@@ -243,8 +251,17 @@ export function FanPage() {
           eyebrow="Match-Day Digital Assistant"
           title="Match-Day Companion"
           description="Live wayfinding instructions, detour notifications, service maps, and instant AI guidance."
-          action={<StatusBadge label={stadiumState ? stadiumState.matchPhase.replace(/_/g, ' ') : 'Live'} tone="success" />}
+          action={
+            <div className="flex items-center gap-2">
+              <StatusBadge
+                label={connected ? 'Live Sync' : 'Offline'}
+                tone={connected ? 'success' : 'neutral'}
+              />
+              <StatusBadge label={stadiumState ? stadiumState.matchPhase.replace(/_/g, ' ') : 'Live'} tone="success" />
+            </div>
+          }
         />
+
       </header>
 
       {/* KPI Stats */}
@@ -430,6 +447,16 @@ export function FanPage() {
                   <span className="block text-[10px] uppercase font-bold text-slate-400">Path Posture</span>
                   <span className="mt-1 block font-extrabold text-white">{routeResult.accessibilityStatus}</span>
                 </div>
+              </div>
+
+              {/* Stadium Map Route Overlay */}
+              <div className="my-4">
+                <StadiumMap
+                  stadiumState={stadiumState}
+                  selectedZoneId={destNode}
+                  activeRoute={routeResult}
+                  isEvacuationMode={stadiumState?.matchPhase === 'EXIT_SURGE'}
+                />
               </div>
 
               {/* Step list */}

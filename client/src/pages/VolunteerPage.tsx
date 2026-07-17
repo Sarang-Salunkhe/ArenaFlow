@@ -19,6 +19,7 @@ import { useAssistant } from '../context/AssistantContext';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { useTelemetryWebSocket } from '../hooks/useTelemetryWebSocket';
 import { StadiumState, OperationalDecision, CopilotResponse } from '../types';
 
 const SELECTABLE_ZONES = [
@@ -41,6 +42,12 @@ export function VolunteerPage() {
   const [stadiumState, setStadiumState] = useState<StadiumState | null>(null);
   const [decisions, setDecisions] = useState<OperationalDecision[]>([]);
   const [assignedZoneId, setAssignedZoneId] = useState<string>('PLAZA_NORTH');
+
+  const { connected } = useTelemetryWebSocket((payload) => {
+    setStadiumState(payload.state);
+    setDecisions(payload.decisions);
+  });
+
   
   const { setSelectedZoneId: setGlobalZoneId, setStadiumState: setGlobalStadiumState } = useAssistant();
 
@@ -301,8 +308,17 @@ export function VolunteerPage() {
           eyebrow="Volunteer Tactical Network"
           title="Volunteer Mission Console"
           description="Fulfill assigned-sector briefs, complete priority field directives, and report live hazards."
-          action={<StatusBadge label={`${stadiumState.matchPhase.replace(/_/g, ' ')}`} tone="warning" />}
+          action={
+            <div className="flex items-center gap-2">
+              <StatusBadge
+                label={connected ? 'Live Sync' : 'Offline'}
+                tone={connected ? 'success' : 'neutral'}
+              />
+              <StatusBadge label={`${stadiumState.matchPhase.replace(/_/g, ' ')}`} tone="warning" />
+            </div>
+          }
         />
+
       </header>
 
       {/* KPI stats */}
