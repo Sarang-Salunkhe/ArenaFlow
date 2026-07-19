@@ -34,18 +34,16 @@ export function createApp() {
   app.use('/api/health', healthRouter);
 
   // Serve static assets in production
-  if (process.env.NODE_ENV === 'production') {
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const distPath = path.resolve(__dirname, '../../client/dist');
-    app.use(express.static(distPath));
-    app.get('*', (req: express.Request, res: express.Response, next: express.NextFunction) => {
-      if (req.path.startsWith('/api/')) {
-        next();
-        return;
-      }
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
+if (process.env.NODE_ENV === 'production') {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const distPath = path.resolve(__dirname, '../../client/dist');
+
+  app.use(express.static(distPath));
+
+  app.get(/^(?!\/api).*/, (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
   // Global error handler to prevent exposing stack traces
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
