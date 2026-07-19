@@ -1,6 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth, signInWithGoogle, signOut, isFirebaseConfigured } from '../services/firebase';
+
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp
+} from "firebase/firestore";
+
+import {
+  auth,
+  db,
+  signInWithGoogle,
+  signOut,
+  isFirebaseConfigured
+} from '../services/firebase';
+
 
 export type UserRole = 'FAN' | 'VOLUNTEER' | 'OPERATIONS';
 
@@ -28,35 +43,46 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const ROLE_STORAGE_KEY = 'arenaflow_user_role';
 const GUEST_SESSION_KEY = 'arenaflow_guest_user';
 
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Helper to determine the best initial role based on email/user configuration
-  const determineRole = (email: string | null, uid: string): UserRole => {
-    // 1. Check persistent localStorage role mapping
-    const savedRole = localStorage.getItem(`${ROLE_STORAGE_KEY}_${uid}`);
-    if (savedRole === 'FAN' || savedRole === 'VOLUNTEER' || savedRole === 'OPERATIONS') {
-      return savedRole;
+  const determineRole = (): UserRole => {
+    return "FAN";
+  };
+
+  const getOrCreateUser = async (firebaseUser: any): Promise<UserRole> => {
+    if (!db) {
+      return determineRole();
     }
 
-    // 2. Default email pattern rules for FIFA Operations
-    if (email) {
-      const lowerEmail = email.toLowerCase();
-      if (
-        lowerEmail === 'sarangsalunkhe08@gmail.com' ||
-        lowerEmail.includes('operations') ||
-        lowerEmail.includes('admin') ||
-        lowerEmail.includes('fifa.org')
-      ) {
-        return 'OPERATIONS';
-      }
-      if (lowerEmail.includes('volunteer') || lowerEmail.includes('helper')) {
-        return 'VOLUNTEER';
-      }
+    const userRef = doc(db, "users", firebaseUser.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      await setDoc(userRef, {
+        displayName: firebaseUser.displayName,
+        email: firebaseUser.email,
+        role: "FAN",
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+      });
+
+      return "FAN";
     }
-    
-    return 'FAN'; // Default fallback
+
+    const data = userSnap.data();
+
+    await setDoc(
+      userRef,
+      {
+        lastLogin: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return (data.role as UserRole) || "FAN";
   };
 
   // Sync auth state
@@ -82,9 +108,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Real Firebase listener
     const unsubscribe = onAuthStateChanged(
       auth, 
-      (firebaseUser) => {
+      async (firebaseUser) => {
         if (firebaseUser) {
-          const role = determineRole(firebaseUser.email, firebaseUser.uid);
+          const role = await getOrCreateUser(firebaseUser);
           setUser({
             uid: firebaseUser.uid,
             displayName: firebaseUser.displayName,
@@ -114,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const fbUser = await signInWithGoogle();
-      const role = determineRole(fbUser.email, fbUser.uid);
+      const role = await getOrCreateUser(fbUser);
       
       const authUser: AuthUser = {
         uid: fbUser.uid,

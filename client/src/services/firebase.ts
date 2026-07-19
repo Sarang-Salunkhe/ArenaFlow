@@ -7,6 +7,8 @@ import {
   Auth,
   User
 } from 'firebase/auth';
+import { getFirestore, Firestore } from "firebase/firestore";
+
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,6 +18,14 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
+
+console.log("API KEY:", import.meta.env.VITE_FIREBASE_API_KEY);
+console.log("AUTH DOMAIN:", import.meta.env.VITE_FIREBASE_AUTH_DOMAIN);
+console.log("PROJECT ID:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
+
+console.log("import.meta.env =", import.meta.env);
+console.log("VITE_FIREBASE_API_KEY =", import.meta.env.VITE_FIREBASE_API_KEY);
+console.log("MODE =", import.meta.env.MODE);
 
 // Check if all essential keys exist
 export const isFirebaseConfigured = !!(
@@ -27,11 +37,16 @@ export const isFirebaseConfigured = !!(
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let googleProvider: GoogleAuthProvider | null = null;
+let db: Firestore | null = null;
 
 if (isFirebaseConfigured) {
   try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+
+    db = getFirestore(app);
+
     auth = getAuth(app);
+
     googleProvider = new GoogleAuthProvider();
     googleProvider.setCustomParameters({
       prompt: 'select_account'
@@ -46,7 +61,7 @@ if (isFirebaseConfigured) {
   );
 }
 
-export { auth, googleProvider };
+export { auth, googleProvider, db };
 
 /**
  * Validate current Firebase configuration keys and format
