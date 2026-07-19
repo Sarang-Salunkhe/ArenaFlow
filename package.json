@@ -25,7 +25,5 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "firebase": "^12.16.0",
-    "framer-motion": "^12.42.2"
   }
 }
