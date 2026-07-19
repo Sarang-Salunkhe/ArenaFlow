@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { reportIncident } from '../engines/simulator.js';
-import { broadcastTelemetryUpdate } from '../services/websocketService.js';
 
 export const incidentsRouter = Router();
 
@@ -22,10 +21,8 @@ incidentsRouter.post('/report', (req, res) => {
 
   try {
     const newIncident = reportIncident(result.data);
-    broadcastTelemetryUpdate();
     res.status(201).json(newIncident);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
-

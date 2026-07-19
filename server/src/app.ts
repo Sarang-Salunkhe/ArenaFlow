@@ -1,9 +1,8 @@
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import cors from 'cors';
 import express from 'express';
-// import path from 'node:path';
-// import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { env } from './config/env.js';
 import { healthRouter } from './routes/health.js';
 import { stadiumRouter } from './routes/stadium.js';
 import { operationsRouter } from './routes/operations.js';
@@ -15,37 +14,9 @@ import { aiRouter } from './routes/ai.js';
 export function createApp() {
   const app = express();
 
-  app.set('trust proxy', 1);
-
-  // Security headers
-  app.use(helmet());
-
-  // Rate limiting
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100,                 // 100 requests/IP
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
-
-  app.use('/api', limiter);
-
-  const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    process.env.CLIENT_ORIGIN,
-  ].filter(Boolean);
-
   app.use(
     cors({
-      origin(origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
-      credentials: true,
+      origin: env.CLIENT_ORIGIN,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
     }),
@@ -63,18 +34,18 @@ export function createApp() {
   app.use('/api/health', healthRouter);
 
   // Serve static assets in production
-  // if (process.env.NODE_ENV === 'production') {
-  //   const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  //   const distPath = path.resolve(__dirname, '../../client/dist');
-  //   app.use(express.static(distPath));
-  //   app.get('/{*splat}', (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  //     if (req.path.startsWith('/api/')) {
-  //       return next();
-  //     }
-
-  //     res.sendFile(path.join(distPath, 'index.html'));
-  //   });
-  // }
+  if (process.env.NODE_ENV === 'production') {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const distPath = path.resolve(__dirname, '../../client/dist');
+    app.use(express.static(distPath));
+    app.get('*', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      if (req.path.startsWith('/api/')) {
+        next();
+        return;
+      }
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
 
   // Global error handler to prevent exposing stack traces
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

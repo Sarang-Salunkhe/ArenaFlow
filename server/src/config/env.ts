@@ -11,7 +11,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
   CLIENT_ORIGIN: z.string().url().default('http://localhost:5173'),
   OPENAI_API_KEY: z.string().optional(),
-  OPENAI_MODEL: z.string().default('gpt-5-mini'),
+  OPENAI_MODEL: z.string().default('gpt-4o-mini'),
 });
 
 const isProd = process.env.NODE_ENV === 'production';

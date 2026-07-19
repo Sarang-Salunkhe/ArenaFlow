@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { API_BASE } from '../config';
 import { 
   Activity, 
   AlertTriangle, 
@@ -25,8 +24,6 @@ import { LoadingSkeleton, KpiCardSkeleton, CopilotSkeleton } from '@/components/
 import { useAssistant } from '../context/AssistantContext';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { useTelemetryWebSocket } from '../hooks/useTelemetryWebSocket';
-import { StadiumMap } from '@/components/StadiumMap';
 import {
   StadiumState,
   OperationalDecision,
@@ -39,13 +36,6 @@ export function OperationsPage() {
   const [insights, setInsights] = useState<CrowdInsight[]>([]);
   const [decisions, setDecisions] = useState<OperationalDecision[]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<string>('PLAZA_NORTH');
-
-  const { connected } = useTelemetryWebSocket((payload) => {
-    setState(payload.state);
-    setInsights(payload.insights);
-    setDecisions(payload.decisions);
-  });
-
   
   // Copilot State
   const [briefText, setBriefText] = useState<string>('Click "Generate Briefing" to analyze stadium operations.');
@@ -88,15 +78,15 @@ export function OperationsPage() {
   // Fetch all live data
   const fetchData = async () => {
     try {
-      const stateRes = await fetch(`${API_BASE}/api/stadium/state`);
+      const stateRes = await fetch('/api/stadium/state');
       const stateData = await stateRes.json();
       setState(stateData);
 
-      const insightsRes = await fetch(`${API_BASE}/api/operations/insights`);
+      const insightsRes = await fetch('/api/operations/insights');
       const insightsData = await insightsRes.json();
       setInsights(insightsData);
 
-      const decisionsRes = await fetch(`${API_BASE}/api/operations/decisions`);
+      const decisionsRes = await fetch('/api/operations/decisions');
       const decisionsData = await decisionsRes.json();
       setDecisions(decisionsData);
     } catch (err) {
@@ -117,7 +107,7 @@ export function OperationsPage() {
   // Simulation handlers
   const handleAdvanceTick = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/simulation/advance`, { method: 'POST' });
+      const res = await fetch('/api/simulation/advance', { method: 'POST' });
       const data = await res.json();
       setState(data);
       await fetchData();
@@ -128,7 +118,7 @@ export function OperationsPage() {
 
   const handleReset = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/simulation/reset`, { method: 'POST' });
+      const res = await fetch('/api/simulation/reset', { method: 'POST' });
       const data = await res.json();
       setState(data);
       setChatHistory([]);
@@ -141,7 +131,7 @@ export function OperationsPage() {
 
   const handlePhaseChange = async (phase: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/simulation/phase`, {
+      const res = await fetch('/api/simulation/phase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phase }),
@@ -156,7 +146,7 @@ export function OperationsPage() {
 
   const handleTriggerScenario = async (scenario: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/simulation/scenario`, {
+      const res = await fetch('/api/simulation/scenario', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scenario }),
@@ -173,7 +163,7 @@ export function OperationsPage() {
   const handleGenerateBrief = async () => {
     setBriefingLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/ai/brief`, {
+      const res = await fetch('/api/ai/brief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'OPERATIONS', selectedZoneId }),
@@ -200,7 +190,7 @@ export function OperationsPage() {
     setChatLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/ai/assist`, {
+      const res = await fetch('/api/ai/assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'OPERATIONS', userPrompt: userMsg, selectedZoneId }),
@@ -227,7 +217,7 @@ export function OperationsPage() {
     setBroadcastText('');
 
     try {
-      const res = await fetch(`${API_BASE}/api/ai/broadcast`, {
+      const res = await fetch('/api/ai/broadcast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decisionId }),
@@ -393,19 +383,6 @@ export function OperationsPage() {
               </span>
             </div>
 
-            {/* Sync Status */}
-            <div className="flex flex-col pr-4 border-r border-white/5">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Sync Status</span>
-              <span className={`text-xs font-black mt-1.5 flex items-center gap-1.5 ${
-                connected ? 'text-emerald-400' : 'text-rose-400 animate-pulse'
-              }`}>
-                <span className={`h-2 w-2 rounded-full ${
-                  connected ? 'bg-emerald-500' : 'bg-rose-500 animate-ping'
-                }`} />
-                {connected ? 'LIVE SYNC' : 'OFFLINE'}
-              </span>
-            </div>
-
             {/* AI Status */}
             <div className="flex flex-col">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">GenAI Copilot</span>
@@ -415,7 +392,6 @@ export function OperationsPage() {
               </span>
             </div>
           </div>
-
         </div>
       </header>
 
@@ -689,13 +665,130 @@ export function OperationsPage() {
               </div>
               
               {/* SVG Stadium Map */}
-              <StadiumMap
-                stadiumState={state}
-                selectedZoneId={selectedZoneId}
-                onSelectZone={setSelectedZoneId}
-                activeRoute={null}
-                isEvacuationMode={state.matchPhase === 'EXIT_SURGE'}
-              />
+              <div className="mt-2 rounded-2xl border border-slate-800/80 bg-slate-950 p-4 shadow-inner flex flex-col items-center">
+                <svg viewBox="0 0 420 300" className="h-auto w-full max-w-sm md:max-w-md" role="img" aria-labelledby="stadium-map-title">
+                  <title id="stadium-map-title">Interactive Control Grid</title>
+                  <defs>
+                    <filter id="selectedGlow">
+                      <feGaussianBlur stdDeviation="3" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
+                  <path d="M105 55 C145 82 148 108 128 137" className="fill-none stroke-blue-500/20" strokeWidth="2" strokeDasharray="5 5" />
+                  <path d="M315 55 C275 82 272 108 292 137" className="fill-none stroke-blue-500/20" strokeWidth="2" strokeDasharray="5 5" />
+                  <path d="M122 250 C176 282 244 282 298 250" className="fill-none stroke-emerald-400/20" strokeWidth="3" strokeLinecap="round" />
+                  
+                  {/* Metro Plaza */}
+                  <rect x="10" y="10" width="100" height="40" rx="6"
+                    onClick={() => setSelectedZoneId('METRO_STATION')}
+                    className={`cursor-pointer stroke-2 transition-all duration-200 hover:opacity-90 ${
+                      selectedZoneId === 'METRO_STATION' ? 'stroke-blue-400 ring-2' : 'stroke-slate-800'
+                    } ${getRiskColorClass(state.zones.find(z => z.id === 'METRO_STATION')?.riskScore || 0)}`}
+                    filter={selectedZoneId === 'METRO_STATION' ? 'url(#selectedGlow)' : undefined} />
+                  <text x="25" y="34" className="fill-white text-[9px] pointer-events-none font-bold font-sans">Metro Plaza</text>
+
+                  {/* Bus Station */}
+                  <rect x="310" y="10" width="100" height="40" rx="6"
+                    onClick={() => setSelectedZoneId('BUS_STATION')}
+                    className={`cursor-pointer stroke-2 transition-all duration-200 hover:opacity-90 ${
+                      selectedZoneId === 'BUS_STATION' ? 'stroke-blue-400' : 'stroke-slate-800'
+                    } ${getRiskColorClass(state.zones.find(z => z.id === 'BUS_STATION')?.riskScore || 0)}`}
+                    filter={selectedZoneId === 'BUS_STATION' ? 'url(#selectedGlow)' : undefined} />
+                  <text x="325" y="34" className="fill-white text-[9px] pointer-events-none font-bold font-sans">Bus Terminal</text>
+
+                  {/* Plaza North */}
+                  <ellipse cx="100" cy="90" rx="40" ry="25"
+                    onClick={() => setSelectedZoneId('PLAZA_NORTH')}
+                    className={`cursor-pointer stroke-2 transition-all duration-200 hover:opacity-90 ${
+                      selectedZoneId === 'PLAZA_NORTH' ? 'stroke-blue-400' : 'stroke-slate-800'
+                    } ${getRiskColorClass(state.zones.find(z => z.id === 'PLAZA_NORTH')?.riskScore || 0)}`}
+                    filter={selectedZoneId === 'PLAZA_NORTH' ? 'url(#selectedGlow)' : undefined} />
+                  <text x="75" y="93" className="fill-white text-[9px] pointer-events-none font-bold font-sans">Plaza North</text>
+
+                  {/* Plaza South */}
+                  <ellipse cx="320" cy="90" rx="40" ry="25"
+                    onClick={() => setSelectedZoneId('PLAZA_SOUTH')}
+                    className={`cursor-pointer stroke-2 transition-all duration-200 hover:opacity-90 ${
+                      selectedZoneId === 'PLAZA_SOUTH' ? 'stroke-blue-400' : 'stroke-slate-800'
+                    } ${getRiskColorClass(state.zones.find(z => z.id === 'PLAZA_SOUTH')?.riskScore || 0)}`}
+                    filter={selectedZoneId === 'PLAZA_SOUTH' ? 'url(#selectedGlow)' : undefined} />
+                  <text x="295" y="93" className="fill-white text-[9px] pointer-events-none font-bold font-sans">Plaza South</text>
+
+                  {/* Concourse Lower - Gates A/C */}
+                  <rect x="75" y="130" width="50" height="20" rx="4"
+                    onClick={() => setSelectedZoneId('CONCOURSE_LOWER')}
+                    className={`cursor-pointer fill-slate-900 stroke-2 transition-all duration-200 hover:fill-slate-850 ${
+                      selectedZoneId === 'CONCOURSE_LOWER' ? 'stroke-blue-400' : 'stroke-slate-800'
+                    }`} />
+                  <text x="82" y="142" className="fill-slate-300 text-[8px] pointer-events-none font-sans font-medium">Gates A/C</text>
+
+                  {/* Concourse Lower - Gates B/D */}
+                  <rect x="295" y="130" width="50" height="20" rx="4"
+                    onClick={() => setSelectedZoneId('CONCOURSE_LOWER')}
+                    className={`cursor-pointer fill-slate-900 stroke-2 transition-all duration-200 hover:fill-slate-850 ${
+                      selectedZoneId === 'CONCOURSE_LOWER' ? 'stroke-blue-400' : 'stroke-slate-800'
+                    }`} />
+                  <text x="302" y="142" className="fill-slate-300 text-[8px] pointer-events-none font-sans font-medium">Gates B/D</text>
+
+                  {/* Lower Concourse Ring */}
+                  <rect x="120" y="160" width="180" height="80" rx="40"
+                    onClick={() => setSelectedZoneId('CONCOURSE_LOWER')}
+                    className={`cursor-pointer stroke-2 transition-all duration-200 hover:opacity-90 ${
+                      selectedZoneId === 'CONCOURSE_LOWER' ? 'stroke-blue-400' : 'stroke-slate-800'
+                    } ${getRiskColorClass(state.zones.find(z => z.id === 'CONCOURSE_LOWER')?.riskScore || 0)}`}
+                    filter={selectedZoneId === 'CONCOURSE_LOWER' ? 'url(#selectedGlow)' : undefined} />
+                  <text x="175" y="172" className="fill-white text-[9px] pointer-events-none font-bold font-sans">Lower Concourse Ring</text>
+
+                  {/* Upper Concourse inside ring */}
+                  <rect x="150" y="185" width="120" height="40" rx="20"
+                    onClick={() => setSelectedZoneId('CONCOURSE_UPPER')}
+                    className={`cursor-pointer stroke-2 transition-all duration-200 hover:opacity-90 ${
+                      selectedZoneId === 'CONCOURSE_UPPER' ? 'stroke-blue-400' : 'stroke-slate-800'
+                    } ${getRiskColorClass(state.zones.find(z => z.id === 'CONCOURSE_UPPER')?.riskScore || 0)}`}
+                    filter={selectedZoneId === 'CONCOURSE_UPPER' ? 'url(#selectedGlow)' : undefined} />
+                  <text x="178" y="197" className="fill-white text-[8px] pointer-events-none font-bold font-sans">Upper Concourse</text>
+
+                  {/* north Lift */}
+                  <circle cx="140" cy="180" r="10"
+                    onClick={() => setSelectedZoneId('LIFT_NORTH')}
+                    className={`cursor-pointer stroke-1 transition-all duration-200 hover:opacity-90 ${
+                      selectedZoneId === 'LIFT_NORTH' ? 'stroke-blue-400' : 'stroke-slate-700'
+                    } ${getRiskColorClass(state.zones.find(z => z.id === 'LIFT_NORTH')?.riskScore || 0)}`} />
+                  <text x="134" y="183" className="fill-white text-[7px] pointer-events-none font-mono">LFT</text>
+
+                  {/* Food Court */}
+                  <rect x="185" y="210" width="50" height="12" rx="3"
+                    onClick={() => setSelectedZoneId('FOOD_COURT_A')}
+                    className={`cursor-pointer stroke-1 transition-all duration-200 hover:opacity-90 ${
+                      selectedZoneId === 'FOOD_COURT_A' ? 'stroke-blue-400' : 'stroke-slate-800'
+                    } ${getRiskColorClass(state.zones.find(z => z.id === 'FOOD_COURT_A')?.riskScore || 0)}`} />
+                  <text x="195" y="219" className="fill-white text-[7px] pointer-events-none font-sans font-medium">Food A</text>
+
+                  {/* Indicators */}
+                  <circle cx="282" cy="195" r="8" className="fill-blue-600/80 stroke-blue-300" />
+                  <text x="275" y="198" className="fill-white text-[6px] pointer-events-none font-sans font-bold">MED</text>
+                  <circle cx="164" cy="214" r="7" className="fill-amber-600/80 stroke-amber-200" />
+                  <text x="158" y="217" className="fill-white text-[6px] pointer-events-none font-sans font-bold">WC</text>
+
+                  {/* Emergency Route link */}
+                  <line x1="100" y1="115" x2="150" y2="240" strokeWidth="4"
+                    onClick={() => setSelectedZoneId('EMERGENCY_CORRIDOR')}
+                    className={`cursor-pointer stroke-slate-700 transition-all duration-200 hover:stroke-blue-400 ${
+                      selectedZoneId === 'EMERGENCY_CORRIDOR' ? 'stroke-blue-400' : ''
+                    } ${state.incidents.some(i => i.zoneId === 'EMERGENCY_CORRIDOR' && i.active) ? 'stroke-rose-600' : ''}`} />
+                  <text x="80" y="235" className="fill-slate-500 text-[8px] pointer-events-none font-sans font-bold">Emergency Route</text>
+                </svg>
+                
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-3.5 text-xs text-slate-400">
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" /> Stable</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" /> Watch</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]" /> High</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse" /> Critical</span>
+                </div>
+              </div>
             </div>
 
             {/* Selected Zone Telemetry Panel */}

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { API_BASE } from '../config';
 import { 
   Accessibility, 
   Route, 
@@ -20,10 +19,7 @@ import { useAssistant } from '../context/AssistantContext';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { useTelemetryWebSocket } from '../hooks/useTelemetryWebSocket';
-import { StadiumMap } from '@/components/StadiumMap';
 import { StadiumState, RouteResult, CopilotResponse } from '../types';
-
 
 const SELECTABLE_NODES = [
   { id: 'METRO_STATION', name: 'Metro Plaza Entrance' },
@@ -71,16 +67,11 @@ const DEFAULT_SERVICES = [
 
 export function FanPage() {
   const [stadiumState, setStadiumState] = useState<StadiumState | null>(null);
-
-  const { connected } = useTelemetryWebSocket((payload) => {
-    setStadiumState(payload.state);
-  });
   
   // Navigation form state
   const [startNode, setStartNode] = useState<string>('METRO_STATION');
   const [destNode, setDestNode] = useState<string>('STAND_EAST');
   const [accessibilityRequired, setAccessibilityRequired] = useState<boolean>(false);
-
   
   const { setSelectedZoneId: setGlobalZoneId, setStadiumState: setGlobalStadiumState } = useAssistant();
 
@@ -111,7 +102,7 @@ export function FanPage() {
   // Load stadium state for alert banners
   const fetchStadiumState = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/stadium/state`);
+      const res = await fetch('/api/stadium/state');
       const data = await res.json();
       setStadiumState(data);
     } catch (err) {
@@ -132,7 +123,7 @@ export function FanPage() {
     setAiExplanation('');
 
     try {
-      const res = await fetch(`${API_BASE}/api/routes/calculate`, {
+      const res = await fetch('/api/routes/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -171,7 +162,7 @@ export function FanPage() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/ai/assist`, {
+      const res = await fetch('/api/ai/assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -211,7 +202,7 @@ export function FanPage() {
     setChatLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/ai/assist`, {
+      const res = await fetch('/api/ai/assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -251,17 +242,8 @@ export function FanPage() {
           eyebrow="Match-Day Digital Assistant"
           title="Match-Day Companion"
           description="Live wayfinding instructions, detour notifications, service maps, and instant AI guidance."
-          action={
-            <div className="flex items-center gap-2">
-              <StatusBadge
-                label={connected ? 'Live Sync' : 'Offline'}
-                tone={connected ? 'success' : 'neutral'}
-              />
-              <StatusBadge label={stadiumState ? stadiumState.matchPhase.replace(/_/g, ' ') : 'Live'} tone="success" />
-            </div>
-          }
+          action={<StatusBadge label={stadiumState ? stadiumState.matchPhase.replace(/_/g, ' ') : 'Live'} tone="success" />}
         />
-
       </header>
 
       {/* KPI Stats */}
@@ -447,16 +429,6 @@ export function FanPage() {
                   <span className="block text-[10px] uppercase font-bold text-slate-400">Path Posture</span>
                   <span className="mt-1 block font-extrabold text-white">{routeResult.accessibilityStatus}</span>
                 </div>
-              </div>
-
-              {/* Stadium Map Route Overlay */}
-              <div className="my-4">
-                <StadiumMap
-                  stadiumState={stadiumState}
-                  selectedZoneId={destNode}
-                  activeRoute={routeResult}
-                  isEvacuationMode={stadiumState?.matchPhase === 'EXIT_SURGE'}
-                />
               </div>
 
               {/* Step list */}

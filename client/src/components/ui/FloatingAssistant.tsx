@@ -4,7 +4,6 @@ import { Bot, Send, Sparkles, RotateCcw, ChevronDown, ChevronUp } from 'lucide-r
 import { CopilotResponse, StadiumState } from '../../types';
 import { AIResponseCard } from '@/components/ui/AIResponseCard';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
-import { API_BASE } from '../../config';
 
 interface FloatingAssistantProps {
   role: 'OPERATIONS' | 'FAN' | 'VOLUNTEER';
@@ -107,7 +106,7 @@ export function FloatingAssistant({ role, selectedZoneId, stadiumState }: Floati
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/ai/assist`, {
+      const response = await fetch('/api/ai/assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role, userPrompt: trimmed, selectedZoneId }),

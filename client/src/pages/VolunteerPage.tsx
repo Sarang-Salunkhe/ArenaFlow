@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { API_BASE } from '../config';
 import { 
   ClipboardList, 
   MapPinned, 
@@ -19,7 +18,6 @@ import { useAssistant } from '../context/AssistantContext';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { useTelemetryWebSocket } from '../hooks/useTelemetryWebSocket';
 import { StadiumState, OperationalDecision, CopilotResponse } from '../types';
 
 const SELECTABLE_ZONES = [
@@ -42,12 +40,6 @@ export function VolunteerPage() {
   const [stadiumState, setStadiumState] = useState<StadiumState | null>(null);
   const [decisions, setDecisions] = useState<OperationalDecision[]>([]);
   const [assignedZoneId, setAssignedZoneId] = useState<string>('PLAZA_NORTH');
-
-  const { connected } = useTelemetryWebSocket((payload) => {
-    setStadiumState(payload.state);
-    setDecisions(payload.decisions);
-  });
-
   
   const { setSelectedZoneId: setGlobalZoneId, setStadiumState: setGlobalStadiumState } = useAssistant();
 
@@ -80,11 +72,11 @@ export function VolunteerPage() {
 
   const fetchVolunteerData = async () => {
     try {
-      const stateRes = await fetch(`${API_BASE}/api/stadium/state`);
+      const stateRes = await fetch('/api/stadium/state');
       const stateData = await stateRes.json();
       setStadiumState(stateData);
 
-      const decisionsRes = await fetch(`${API_BASE}/api/operations/decisions`);
+      const decisionsRes = await fetch('/api/operations/decisions');
       const decisionsData = await decisionsRes.json();
       setDecisions(decisionsData);
     } catch (err) {
@@ -106,7 +98,7 @@ export function VolunteerPage() {
   const handleFetchBrief = async () => {
     setBriefLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/ai/brief`, {
+      const res = await fetch('/api/ai/brief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'VOLUNTEER', selectedZoneId: assignedZoneId }),
@@ -135,7 +127,7 @@ export function VolunteerPage() {
     setIncidentError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/incidents/report`, {
+      const res = await fetch('/api/incidents/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -174,7 +166,7 @@ export function VolunteerPage() {
     setChatLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/ai/assist`, {
+      const res = await fetch('/api/ai/assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -308,17 +300,8 @@ export function VolunteerPage() {
           eyebrow="Volunteer Tactical Network"
           title="Volunteer Mission Console"
           description="Fulfill assigned-sector briefs, complete priority field directives, and report live hazards."
-          action={
-            <div className="flex items-center gap-2">
-              <StatusBadge
-                label={connected ? 'Live Sync' : 'Offline'}
-                tone={connected ? 'success' : 'neutral'}
-              />
-              <StatusBadge label={`${stadiumState.matchPhase.replace(/_/g, ' ')}`} tone="warning" />
-            </div>
-          }
+          action={<StatusBadge label={`${stadiumState.matchPhase.replace(/_/g, ' ')}`} tone="warning" />}
         />
-
       </header>
 
       {/* KPI stats */}
