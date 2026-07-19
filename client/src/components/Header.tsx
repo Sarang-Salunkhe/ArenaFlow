@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import { UserMenu } from './UserMenu';
+import { useAuth } from '../hooks/useAuth';
 
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
+  const role = user?.role;
 
   // Close the menu automatically when route changes
   useEffect(() => {
@@ -23,17 +27,16 @@ export function Header() {
     };
   }, [isOpen]);
 
+  // Dynamically filter links based on User's Role-Based Access Level
   const desktopLinks = [
-    { to: '/operations', label: 'Operations' },
-    { to: '/fan', label: 'Fan' },
-    { to: '/volunteer', label: 'Volunteer' },
+    ...(role === 'OPERATIONS' ? [{ to: '/operations', label: 'Operations' }] : []),
+    ...(role === 'OPERATIONS' || role === 'FAN' ? [{ to: '/fan', label: 'Fan' }] : []),
+    ...(role === 'OPERATIONS' || role === 'VOLUNTEER' ? [{ to: '/volunteer', label: 'Volunteer' }] : []),
   ];
 
   const mobileLinks = [
     { to: '/', label: 'Home' },
-    { to: '/operations', label: 'Operations' },
-    { to: '/fan', label: 'Fan' },
-    { to: '/volunteer', label: 'Volunteer' },
+    ...desktopLinks
   ];
 
   return (
@@ -84,17 +87,22 @@ export function Header() {
           </ul>
         </nav>
 
-        {/* Hamburger Toggle Button for Tablet/Mobile */}
-        <button
-          type="button"
-          className="relative z-50 flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900/60 text-slate-300 transition-colors hover:border-slate-700 hover:text-white focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 md:hidden"
-          onClick={() => setIsOpen(!isOpen)}
-          aria-expanded={isOpen}
-          aria-controls="mobile-navigation"
-          aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
-        >
-          {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* Right side controls: User Profile Menu & Mobile Hamburger */}
+        <div className="flex items-center gap-3">
+          <UserMenu />
+
+          {/* Hamburger Toggle Button for Tablet/Mobile */}
+          <button
+            type="button"
+            className="relative z-50 flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900/60 text-slate-300 transition-colors hover:border-slate-700 hover:text-white focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 md:hidden"
+            onClick={() => setIsOpen(!isOpen)}
+            aria-expanded={isOpen}
+            aria-controls="mobile-navigation"
+            aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
+          >
+            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
 
         {/* Mobile slide-out drawer - backdrop */}
         <div

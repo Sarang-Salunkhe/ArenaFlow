@@ -57,6 +57,19 @@ export interface TransportState {
   taxiQueueSeconds: number;
 }
 
+export interface MatchState {
+  minute: number;
+  half: 'PRE_MATCH' | 'FIRST_HALF' | 'HALF_TIME' | 'SECOND_HALF' | 'EXTRA_TIME' | 'PENALTIES' | 'FINISHED';
+  addedTime: number;
+  status: 'Pre Match' | 'First Half' | 'Half Time' | 'Second Half' | 'Extra Time' | 'Penalties' | 'Finished';
+  scoreHome: number;
+  scoreAway: number;
+  teamHome: string;
+  teamAway: string;
+  importance: 'NORMAL' | 'HIGH' | 'CRITICAL';
+  attendance: number;
+}
+
 export interface StadiumState {
   matchPhase: MatchPhase;
   tickCount: number;
@@ -64,6 +77,7 @@ export interface StadiumState {
   gates: Gate[];
   incidents: Incident[];
   transport: TransportState;
+  match: MatchState;
 }
 
 export interface CrowdInsight {
@@ -127,6 +141,20 @@ export interface OperationalDecision {
     volunteerInstruction: string;
   };
   timestamp: string;
+  situationSummary?: string;
+  riskScore?: number;
+  confidenceScore?: number;
+  estimatedResolutionTime?: string;
+  requiredPersonnel?: string[];
+  resourcesSuggested?: {
+    medicalTeam?: string;
+    securityUnit?: string;
+    volunteerGroup?: string;
+    equipment?: string;
+    emergencyVehicle?: string;
+  };
+  explanation?: string;
+  status?: 'PENDING' | 'APPROVED' | 'DISMISSED' | 'MODIFIED';
 }
 
 export interface CopilotRequest {

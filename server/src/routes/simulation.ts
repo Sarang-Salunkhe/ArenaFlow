@@ -63,7 +63,7 @@ simulationRouter.post('/phase', (req, res) => {
 
 // Schema for scenarios
 const scenarioSchema = z.object({
-  scenario: z.enum(['GATE_CONGESTION', 'MEDICAL_INCIDENT', 'ROUTE_CLOSURE', 'EXIT_SURGE']),
+  scenario: z.string(),
 });
 
 // POST /api/simulation/scenario

@@ -24,7 +24,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "express-rate-limit": "^8.5.2",
-    "helmet": "^8.3.0"
+    "firebase": "^12.16.0",
+    "framer-motion": "^12.42.2"
   }
 }

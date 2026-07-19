@@ -13,29 +13,41 @@ import {
   Bot,
   MapPin,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Cpu
 } from 'lucide-react';
 import { BackLink } from '@/components/BackLink';
 import { AIResponseCard } from '@/components/ui/AIResponseCard';
 import { AlertBanner } from '@/components/ui/AlertBanner';
 import { ChatBubble } from '@/components/ui/ChatBubble';
-import { KpiCard } from '@/components/ui/KpiCard';
 import { LoadingSkeleton, KpiCardSkeleton, CopilotSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useAssistant } from '../context/AssistantContext';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import {
   StadiumState,
   OperationalDecision,
   CrowdInsight,
   CopilotResponse,
 } from '../types';
+import {
+  TopCommandBar,
+  KpiSection,
+  IncidentCenter,
+  TacticalPanel,
+  ResourceDeployment,
+  LiveActivityTimeline,
+  getRiskColorClass,
+  getRiskBgClass
+} from '../components/operations/CommandCenterComponents';
+import { DigitalTwinDashboard } from '../components/operations/DigitalTwinDashboard';
+import { PlaybookDashboard } from '../components/operations/PlaybookDashboard';
 
 export function OperationsPage() {
   const [state, setState] = useState<StadiumState | null>(null);
   const [insights, setInsights] = useState<CrowdInsight[]>([]);
   const [decisions, setDecisions] = useState<OperationalDecision[]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<string>('PLAZA_NORTH');
+  const [activeTab, setActiveTab] = useState<'OPERATIONS' | 'TWIN' | 'PLAYBOOK'>('OPERATIONS');
   
   // Copilot State
   const [briefText, setBriefText] = useState<string>('Click "Generate Briefing" to analyze stadium operations.');
@@ -212,15 +224,20 @@ export function OperationsPage() {
   };
 
   // AI Broadcast handler
-  const handleGenerateBroadcast = async (decisionId: string) => {
+  const handleGenerateBroadcast = async (id: string) => {
     setBroadcastLoading(true);
     setBroadcastText('');
 
     try {
+      const isDecision = decisions.some(d => d.id === id);
+      const requestBody = isDecision 
+        ? { decisionId: id } 
+        : { customTopic: state?.incidents.find(i => i.id === id)?.description || `Incident ID: ${id}` };
+
       const res = await fetch('/api/ai/broadcast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decisionId }),
+        body: JSON.stringify(requestBody),
       });
       const data: CopilotResponse = await res.json();
       setBroadcastText(data.text);
@@ -291,33 +308,13 @@ export function OperationsPage() {
       state.zones.length,
   );
 
-  const getRiskColorClass = (riskScore: number) => {
-    if (riskScore >= 80) return 'text-red-500 fill-red-500/10 stroke-red-500';
-    if (riskScore >= 60) return 'text-orange-500 fill-orange-500/10 stroke-orange-500';
-    if (riskScore >= 35) return 'text-amber-500 fill-amber-500/10 stroke-amber-500';
-    return 'text-emerald-500 fill-emerald-500/10 stroke-emerald-500';
-  };
 
-  const getRiskBgClass = (riskScore: number) => {
-    if (riskScore >= 80) return 'bg-red-950/25 border-red-900/40 text-red-100';
-    if (riskScore >= 60) return 'bg-orange-950/25 border-orange-900/40 text-orange-100';
-    if (riskScore >= 35) return 'bg-amber-950/25 border-amber-900/40 text-amber-100';
-    return 'bg-emerald-950/15 border-emerald-900/30 text-emerald-100';
-  };
 
   // Telemetry and analytical calculations for the 6 KPIs
-  const totalOccupancy = state.zones.reduce((sum, z) => sum + z.occupancy, 0);
-  const totalCapacity = state.zones.reduce((sum, z) => sum + z.capacity, 0);
-  const occupancyStr = `${totalOccupancy.toLocaleString()} / ${totalCapacity.toLocaleString()}`;
-
   const avgRiskScore = state.zones.length > 0
     ? Math.round(state.zones.reduce((sum, z) => sum + z.riskScore, 0) / state.zones.length)
     : 0;
   const riskStatus = avgRiskScore >= 65 ? 'Critical' : avgRiskScore >= 40 ? 'Elevated' : 'Nominal';
-
-  const metroMin = Math.round(state.transport.metroQueueSeconds / 60);
-  const busMin = Math.round(state.transport.busQueueSeconds / 60);
-  const taxiMin = Math.round(state.transport.taxiQueueSeconds / 60);
 
   const avgGateQueueSec = state.gates.length > 0
     ? Math.round(state.gates.reduce((total, g) => total + g.avgQueueSeconds, 0) / state.gates.length)
@@ -334,75 +331,68 @@ export function OperationsPage() {
       </div>
 
       {/* Premium Command Header */}
-      <header className="relative overflow-hidden rounded-3xl border border-white/5 bg-slate-900/30 p-6 md:p-8 shadow-2xl backdrop-blur-xl">
-        <div className="absolute top-0 right-0 -mt-20 -mr-20 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between relative z-10">
-          <div>
-            <div className="flex items-center gap-3">
-              <span className="inline-flex items-center rounded-md bg-blue-500/10 px-2.5 py-0.5 text-xs font-bold text-blue-400 border border-blue-500/20">
-                STADIUM OPERATIONS
-              </span>
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">System Live</span>
-            </div>
-            
-            <h1 className="mt-2.5 fluid-h1 font-black tracking-tight text-white font-sans">
-              ArenaFlow <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">Command Center</span>
-            </h1>
-            <p className="text-sm text-slate-400 mt-1.5 max-w-xl">
-              Enterprise-grade intelligence for tournament operations, stadium transit networks, and volunteer dispatch.
-            </p>
-          </div>
+      <TopCommandBar
+        state={state}
+        activeIncidentsCount={activeIncidents.length}
+        avgOccupancyPct={avgOccupancyPct}
+        timeString={timeString}
+      />
 
-          <div className="flex flex-wrap items-center gap-4 bg-slate-950/60 p-4 rounded-2xl border border-white/5 backdrop-blur-md">
-            {/* Live Clock */}
-            <div className="flex flex-col pr-4 border-r border-white/5">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Live Clock</span>
-              <span className="text-base font-black font-mono text-white tracking-wider mt-0.5">{timeString}</span>
-            </div>
+      {/* Dashboard View Mode Selector Tab Group */}
+      <div className="flex flex-wrap rounded-2xl bg-slate-900/60 p-1 border border-white/5 self-start font-sans text-xs font-bold gap-1 shadow-lg backdrop-blur-md">
+        <button
+          onClick={() => setActiveTab('OPERATIONS')}
+          className={`px-5 py-2.5 rounded-xl transition-all duration-300 flex items-center gap-2 cursor-pointer ${
+            activeTab === 'OPERATIONS'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/15'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Activity className="h-4 w-4" />
+          Live Operations Center
+        </button>
+        <button
+          onClick={() => setActiveTab('TWIN')}
+          className={`px-5 py-2.5 rounded-xl transition-all duration-300 flex items-center gap-2 cursor-pointer relative ${
+            activeTab === 'TWIN'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/15'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Cpu className="h-4 w-4 animate-spin-slow" />
+          Digital Twin Intelligence
+          <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('PLAYBOOK')}
+          className={`px-5 py-2.5 rounded-xl transition-all duration-300 flex items-center gap-2 cursor-pointer relative ${
+            activeTab === 'PLAYBOOK'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/15'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Radio className="h-4 w-4 animate-pulse" />
+          AI Playbook Engine
+          <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
+          </span>
+        </button>
+      </div>
 
-            {/* Match Status */}
-            <div className="flex flex-col pr-4 border-r border-white/5">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Match Phase</span>
-              <div className="flex items-center gap-1.5 mt-1">
-                <StatusBadge label={state.matchPhase.replace(/_/g, ' ')} tone={state.matchPhase === 'MATCH_ACTIVE' ? 'warning' : 'neutral'} />
-                <span className="text-xs font-bold font-mono text-slate-400">T+{state.tickCount}</span>
-              </div>
-            </div>
-
-            {/* Stadium Status */}
-            <div className="flex flex-col pr-4 border-r border-white/5">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Stadium Posture</span>
-              <span className={`text-xs font-black mt-1.5 flex items-center gap-1.5 ${
-                activeIncidents.length > 0 ? 'text-red-400' : 'text-emerald-400'
-              }`}>
-                <span className={`h-2 w-2 rounded-full ${
-                  activeIncidents.length > 0 ? 'bg-red-500 animate-ping' : 'bg-emerald-500'
-                }`} />
-                {activeIncidents.length > 0 ? `${activeIncidents.length} INCIDENTS` : 'NOMINAL'}
-              </span>
-            </div>
-
-            {/* AI Status */}
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">GenAI Copilot</span>
-              <span className="text-xs font-black text-indigo-400 mt-1.5 flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] animate-pulse" />
-                ACTIVE
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Simulator Controls & Scenario Injections Card */}
+      {activeTab === 'OPERATIONS' ? (
+        <>
+          {/* Simulator Controls & Scenario Injections Card */}
       <section className="rounded-3xl border border-slate-800 bg-slate-900/40 p-5 shadow-xl backdrop-blur-md" aria-label="Simulator and Match State Controls">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Controls */}
           <div>
             <div className="flex items-center gap-2 border-b border-white/5 pb-3 mb-4">
               <Clock className="h-4.5 w-4.5 text-blue-400" />
-              <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Simulator Controls</h2>
+              <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Simulator Control Deck</h2>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <button
@@ -441,17 +431,25 @@ export function OperationsPage() {
           </div>
 
           {/* Scenario Injections */}
-          <div>
+          <div className="w-full">
             <div className="flex items-center gap-2 border-b border-white/5 pb-3 mb-4">
               <Radio className="h-4.5 w-4.5 text-rose-400 animate-pulse" />
-              <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Inject Scenarios</h2>
+              <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Inject Stadium Scenarios &amp; Match Events</h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
               {[
-                { key: 'GATE_CONGESTION', label: 'Gate Congestion', style: 'bg-rose-950/10 border-rose-900/40 text-rose-300 hover:bg-rose-950/30 hover:border-rose-850' },
-                { key: 'MEDICAL_INCIDENT', label: 'Medical Incident', style: 'bg-amber-950/10 border-amber-900/40 text-amber-300 hover:bg-amber-950/30 hover:border-amber-850' },
-                { key: 'ROUTE_CLOSURE', label: 'Route Closure', style: 'bg-slate-950/30 border-slate-800 text-slate-300 hover:bg-slate-900 hover:border-slate-700' },
-                { key: 'EXIT_SURGE', label: 'Exit Surge', style: 'bg-indigo-950/10 border-indigo-900/40 text-indigo-300 hover:bg-indigo-950/30 hover:border-indigo-850' }
+                { key: 'GOAL', label: '⚽ Goal scored', style: 'bg-emerald-950/20 border-emerald-900/50 text-emerald-300 hover:bg-emerald-950/40 hover:border-emerald-700' },
+                { key: 'YELLOW_CARD', label: '🟨 Yellow Card', style: 'bg-yellow-950/20 border-yellow-900/50 text-yellow-300 hover:bg-yellow-950/40 hover:border-yellow-700' },
+                { key: 'RED_CARD', label: '🟥 Red Card', style: 'bg-red-950/20 border-red-900/50 text-red-300 hover:bg-red-950/40 hover:border-red-700' },
+                { key: 'MEDICAL_EMERGENCY', label: '❤️ Medical Case', style: 'bg-rose-950/20 border-rose-900/50 text-rose-300 hover:bg-rose-950/40 hover:border-rose-700' },
+                { key: 'CROWD_SURGE', label: '🌊 Crowd Surge', style: 'bg-indigo-950/20 border-indigo-900/50 text-indigo-300 hover:bg-indigo-950/40 hover:border-indigo-700' },
+                { key: 'GATE_CONGESTION', label: '🚪 Gate Queue', style: 'bg-pink-950/20 border-pink-900/50 text-pink-300 hover:bg-pink-950/40 hover:border-pink-700' },
+                { key: 'HEAVY_RAIN', label: '🌧️ Heavy Rain', style: 'bg-blue-950/20 border-blue-900/50 text-blue-300 hover:bg-blue-950/40 hover:border-blue-700' },
+                { key: 'VIP_ARRIVAL', label: '👑 VIP Arrival', style: 'bg-violet-950/20 border-violet-900/50 text-violet-300 hover:bg-violet-950/40 hover:border-violet-700' },
+                { key: 'SECURITY_ALERT', label: '🚨 Sec. Alert', style: 'bg-red-950/30 border-red-800/60 text-red-400 hover:bg-red-950/50 hover:border-red-650' },
+                { key: 'LOST_CHILD', label: '👧 Lost Child', style: 'bg-teal-950/20 border-teal-900/50 text-teal-300 hover:bg-teal-950/40 hover:border-teal-700' },
+                { key: 'PUBLIC_TRANSPORT_DELAY', label: '🚊 Metro Delay', style: 'bg-cyan-950/20 border-cyan-900/50 text-cyan-300 hover:bg-cyan-950/40 hover:border-cyan-700' },
+                { key: 'POWER_FAILURE', label: '🔌 Power Cut', style: 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-900 hover:border-slate-700' },
               ].map(sc => (
                 <button
                   key={sc.key}
@@ -524,52 +522,18 @@ export function OperationsPage() {
         </div>
       </section>
 
-      {/* KPI Overview Grid with exactly 6 required responsive cards */}
+      {/* KPI Overview Grid with exactly 10 premium responsive cards */}
       <section aria-label="Operations Overview Grid">
-        <div className="responsive-kpi-grid gap-4">
-          <KpiCard
-            label="Occupancy"
-            value={`${avgOccupancyPct}%`}
-            helper={occupancyStr}
-            icon={Users}
-            tone="default"
-          />
-          <KpiCard
-            label="Risk Score"
-            value={`${avgRiskScore}/100`}
-            helper={`Status: ${riskStatus}`}
-            icon={ShieldAlert}
-            tone={avgRiskScore >= 65 ? 'danger' : avgRiskScore >= 35 ? 'warning' : 'success'}
-          />
-          <KpiCard
-            label="Active Incidents"
-            value={String(activeIncidents.length)}
-            helper={activeIncidents.length > 0 ? 'Urgent dispatch team active' : 'All sectors normal'}
-            icon={AlertTriangle}
-            tone={activeIncidents.length > 0 ? 'danger' : 'success'}
-          />
-          <KpiCard
-            label="Transport"
-            value={`Metro: ${metroMin}m`}
-            helper={`Bus: ${busMin}m | Taxi: ${taxiMin}m`}
-            icon={Activity}
-            tone="default"
-          />
-          <KpiCard
-            label="Queue Times"
-            value={`${Math.round(avgGateQueueSec / 60)}m avg`}
-            helper={`Max wait: ${Math.round(maxGateQueueSec / 60)}m`}
-            icon={Clock}
-            tone={avgGateQueueSec > 180 ? 'warning' : 'default'}
-          />
-          <KpiCard
-            label="Volunteers"
-            value={String(activeVolunteersCount)}
-            helper={`Covering ${state.zones.length} active sectors`}
-            icon={Users}
-            tone="success"
-          />
-        </div>
+        <KpiSection
+          state={state}
+          avgOccupancyPct={avgOccupancyPct}
+          avgRiskScore={avgRiskScore}
+          riskStatus={riskStatus}
+          activeIncidentsCount={activeIncidents.length}
+          avgGateQueueSec={avgGateQueueSec}
+          maxGateQueueSec={maxGateQueueSec}
+          activeVolunteersCount={activeVolunteersCount}
+        />
       </section>
 
       {activeIncidents.length > 0 ? (
@@ -649,6 +613,146 @@ export function OperationsPage() {
                 </div>
               </div>
             )}
+          </section>
+
+          {/* NEW: Match & Crowd Telemetry Analytics Dashboard */}
+          <section className="rounded-3xl border border-slate-800 bg-slate-900/40 p-5 shadow-xl backdrop-blur-md" aria-label="Match & Crowd Telemetry">
+            <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-3">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4.5 w-4.5 text-blue-400 animate-pulse" />
+                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Transit &amp; Crowd stress telemetry</h2>
+              </div>
+              <span className="text-[10px] uppercase font-bold tracking-widest text-emerald-400 font-mono bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-900/30">
+                ACTIVE PIPELINE
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* SVG Line Chart (7 cols) */}
+              <div className="lg:col-span-7 rounded-2xl bg-slate-950 border border-white/[0.02] p-4 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-xs font-bold text-white">Crowd Flow Index vs Match Minutes</span>
+                    <span className="text-[10px] text-slate-400 font-medium">Real-time projection stream</span>
+                  </div>
+                  
+                  {/* Dynamic Interactive SVG Chart */}
+                  <div className="relative h-44 w-full">
+                    {/* Y-axis guidelines */}
+                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none text-[8px] font-mono text-slate-600">
+                      <div className="w-full border-t border-red-500/10 flex justify-between pt-0.5"><span>90 (CRITICAL)</span></div>
+                      <div className="w-full border-t border-amber-500/10 flex justify-between pt-0.5"><span>60 (WARNING)</span></div>
+                      <div className="w-full border-t border-white/[0.03] flex justify-between pt-0.5"><span>30 (NOMINAL)</span></div>
+                      <div className="w-full border-t border-white/[0.03] flex justify-between pt-0.5"><span>0</span></div>
+                    </div>
+
+                    <svg viewBox="0 0 400 150" className="absolute inset-0 h-full w-full overflow-visible" role="img" aria-label="Crowd Pressure Index Chart">
+                      {/* Trend path */}
+                      <path 
+                        d="M 10 110 Q 50 40 100 20 T 200 80 T 300 130 T 390 10" 
+                        fill="none" 
+                        stroke="url(#chartGradient)" 
+                        strokeWidth="3.5" 
+                        strokeLinecap="round" 
+                      />
+
+                      {/* Line Gradients */}
+                      <defs>
+                        <linearGradient id="chartGradient" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#3b82f6" />
+                          <stop offset="30%" stopColor="#f59e0b" />
+                          <stop offset="60%" stopColor="#10b981" />
+                          <stop offset="100%" stopColor="#ef4444" />
+                        </linearGradient>
+                      </defs>
+
+                      {/* Key Marker points */}
+                      <circle cx="10" cy="110" r="4.5" className="fill-blue-400 stroke-slate-950 stroke-2" />
+                      <circle cx="100" cy="20" r="4.5" className="fill-amber-400 stroke-slate-950 stroke-2" />
+                      <circle cx="200" cy="80" r="4.5" className="fill-emerald-400 stroke-slate-950 stroke-2" />
+                      <circle cx="390" cy="10" r="4.5" className="fill-red-400 stroke-slate-950 stroke-2" />
+
+                      {/* Current Matchday phase marker line that shifts based on phase */}
+                      {(() => {
+                        const phasePositions: Record<string, number> = {
+                          'PRE_MATCH': 25,
+                          'ENTRY_SURGE': 100,
+                          'MATCH_ACTIVE': 200,
+                          'HALF_TIME': 260,
+                          'MATCH_END': 330,
+                          'EXIT_SURGE': 380
+                        };
+                        const xPos = phasePositions[state.matchPhase] || 200;
+                        return (
+                          <g className="transition-transform duration-1000 ease-out" transform={`translate(${xPos}, 0)`}>
+                            <line x1="0" y1="0" x2="0" y2="140" stroke="#818cf8" strokeWidth="2" strokeDasharray="3 3" />
+                            <circle cx="0" cy="70" r="6" className="fill-indigo-400 animate-pulse" />
+                            <rect x="-30" y="-12" width="60" height="15" rx="3" className="fill-indigo-950 stroke-indigo-400 stroke-[0.5]" />
+                            <text x="0" y="-2" className="fill-white text-[7px] font-bold font-mono text-center" textAnchor="middle">LIVE NOW</text>
+                          </g>
+                        );
+                      })()}
+                    </svg>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center text-[8px] font-mono text-slate-500 mt-2 border-t border-white/5 pt-2">
+                  <span>PRE-MATCH (T-120)</span>
+                  <span>KICKOFF (0')</span>
+                  <span>HALFTIME (45')</span>
+                  <span>FULLTIME (90')</span>
+                  <span>EGRESS (T+120)</span>
+                </div>
+              </div>
+
+              {/* USA vs GER Match Momentum (5 cols) */}
+              <div className="lg:col-span-5 rounded-2xl bg-slate-950 border border-white/[0.02] p-4 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-xs font-bold text-white">Live Momentum Index</span>
+                    <span className="text-[10px] text-slate-400 font-medium font-mono">USA vs GER</span>
+                  </div>
+
+                  {/* Momentum Progress bars */}
+                  <div className="space-y-4">
+                    {/* USA Momentum */}
+                    <div>
+                      <div className="flex justify-between text-[10px] font-bold mb-1">
+                        <span className="text-blue-400">🇺🇸 USA Attack Rating</span>
+                        <span className="text-white font-mono">{52 + (state.tickCount * 3) % 25}%</span>
+                      </div>
+                      <div className="h-2 w-full bg-blue-950 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-blue-500 transition-all duration-1000"
+                          style={{ width: `${52 + (state.tickCount * 3) % 25}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* GER Momentum */}
+                    <div>
+                      <div className="flex justify-between text-[10px] font-bold mb-1">
+                        <span className="text-rose-400">🇩🇪 Germany Attack Rating</span>
+                        <span className="text-white font-mono">{48 + (state.tickCount * 2) % 20}%</span>
+                      </div>
+                      <div className="h-2 w-full bg-rose-950 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-rose-500 transition-all duration-1000"
+                          style={{ width: `${48 + (state.tickCount * 2) % 20}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 p-3 rounded-xl bg-slate-900/40 border border-white/5">
+                    <span className="block text-[8px] uppercase tracking-wider text-slate-500 font-bold mb-1">AI Match Prediction</span>
+                    <p className="text-xs text-slate-300 font-sans leading-relaxed text-left">
+                      Expected goal probability is <strong className="text-blue-400">USA {45 + (state.tickCount) % 10}%</strong> to <strong className="text-rose-400">GER {35 + (state.tickCount * 2) % 8}%</strong> with a high chance of transition surge at {state.matchPhase === 'MATCH_ACTIVE' ? "this phase" : "Match Active"}.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </section>
 
           {/* Operational Insights Section (Map + Selected Sector Detail) */}
@@ -778,8 +882,30 @@ export function OperationsPage() {
                     onClick={() => setSelectedZoneId('EMERGENCY_CORRIDOR')}
                     className={`cursor-pointer stroke-slate-700 transition-all duration-200 hover:stroke-blue-400 ${
                       selectedZoneId === 'EMERGENCY_CORRIDOR' ? 'stroke-blue-400' : ''
-                    } ${state.incidents.some(i => i.zoneId === 'EMERGENCY_CORRIDOR' && i.active) ? 'stroke-rose-600' : ''}`} />
+                    } ${state.incidents.some(i => i.zoneId === 'EMERGENCY_CORRIDOR' && i.active) ? 'stroke-rose-600 animate-pulse' : ''}`} />
                   <text x="80" y="235" className="fill-slate-500 text-[8px] pointer-events-none font-sans font-bold">Emergency Route</text>
+
+                  {/* Real-time incident live-map visual overlay */}
+                  {activeIncidents.map(inc => {
+                    let coords = { x: 210, y: 150 }; // default
+                    if (inc.zoneId === 'METRO_STATION') coords = { x: 60, y: 30 };
+                    else if (inc.zoneId === 'BUS_STATION') coords = { x: 360, y: 30 };
+                    else if (inc.zoneId === 'PLAZA_NORTH') coords = { x: 100, y: 90 };
+                    else if (inc.zoneId === 'PLAZA_SOUTH') coords = { x: 320, y: 90 };
+                    else if (inc.zoneId === 'CONCOURSE_LOWER') coords = { x: 210, y: 165 };
+                    else if (inc.zoneId === 'CONCOURSE_UPPER') coords = { x: 210, y: 200 };
+                    else if (inc.zoneId === 'LIFT_NORTH') coords = { x: 140, y: 180 };
+                    else if (inc.zoneId === 'FOOD_COURT_A') coords = { x: 210, y: 216 };
+                    else if (inc.zoneId === 'EMERGENCY_CORRIDOR') coords = { x: 125, y: 177 };
+
+                    return (
+                      <g key={`ping-${inc.id}`} className="pointer-events-none">
+                        <circle cx={coords.x} cy={coords.y} r="14" className="fill-red-500/10 stroke-red-500 stroke-[1.5] animate-ping" />
+                        <circle cx={coords.x} cy={coords.y} r="5" className="fill-red-500 stroke-white stroke-1" />
+                        <text x={coords.x + 8} y={coords.y + 3} className="fill-red-400 font-mono text-[7px] font-black tracking-wider">ALERT</text>
+                      </g>
+                    );
+                  })}
                 </svg>
                 
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-3.5 text-xs text-slate-400">
@@ -800,7 +926,7 @@ export function OperationsPage() {
                     <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mt-0.5">Sector ID: {selectedZoneId}</p>
                   </div>
                   <span className={`rounded-full px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-widest shadow-md ${
-                    selectedZone.attentionLevel === 'CRITICAL' ? 'bg-red-500 text-white' :
+                    selectedZone.attentionLevel === 'CRITICAL' ? 'bg-red-500 text-white animate-pulse' :
                     selectedZone.attentionLevel === 'HIGH' ? 'bg-orange-500 text-white' :
                     selectedZone.attentionLevel === 'WATCH' ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-200'
                   }`}>
@@ -808,152 +934,156 @@ export function OperationsPage() {
                   </span>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl bg-slate-950/40 border border-white/5 p-3.5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Risk Score</p>
-                    <p className="mt-1 text-base font-black font-mono text-white">{selectedZone.riskScore}<span className="text-xs font-normal text-slate-500">/100</span></p>
-                  </div>
-                  <div className="rounded-2xl bg-slate-950/40 border border-white/5 p-3.5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Occupancy</p>
-                    <div className="mt-1 text-xs font-black font-mono text-white">
-                      {selectedZone.occupancy.toLocaleString()} 
-                      <span className="text-[10px] font-medium text-slate-400 block mt-0.5">/ {selectedZone.capacity.toLocaleString()} ({selectedInsight.occupancyPct}%)</span>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-5 mt-4">
+                  {/* Left Column: Stats & Anomalies (7 cols) */}
+                  <div className="md:col-span-7 flex flex-col justify-between gap-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl bg-slate-950/40 border border-white/5 p-3.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Risk Score</p>
+                        <p className="mt-1 text-base font-black font-mono text-white">{selectedZone.riskScore}<span className="text-xs font-normal text-slate-500">/100</span></p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-950/40 border border-white/5 p-3.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Occupancy</p>
+                        <div className="mt-1 text-xs font-black font-mono text-white">
+                          {selectedZone.occupancy.toLocaleString()} 
+                          <span className="text-[10px] font-medium text-slate-400 block mt-0.5">/ {selectedZone.capacity.toLocaleString()} ({selectedInsight.occupancyPct}%)</span>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-slate-950/40 border border-white/5 p-3.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Density Posture</p>
+                        <p className="mt-1 text-xs font-extrabold text-blue-300">{selectedZone.crowdLevel}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-950/40 border border-white/5 p-3.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Flow Trend</p>
+                        <p className="mt-1 text-xs font-extrabold text-emerald-400">📈 {selectedZone.trend}</p>
+                      </div>
                     </div>
+
+                    {selectedInsight.reasons.length > 0 && (
+                      <div className="border-t border-white/5 pt-3">
+                        <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                          Anomaly Factors & Telemetry
+                        </h4>
+                        <ul className="list-none text-[11px] text-slate-300 space-y-1 pl-0">
+                          {selectedInsight.reasons.map((r, idx) => (
+                            <li key={idx} className="flex gap-2 rounded-xl bg-slate-950/30 border border-white/5 px-2.5 py-1.5 leading-relaxed">
+                              <span className="text-blue-400">▶</span>
+                              <span>{r}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                  <div className="rounded-2xl bg-slate-950/40 border border-white/5 p-3.5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Density Posture</p>
-                    <p className="mt-1 text-xs font-extrabold text-blue-300">{selectedZone.crowdLevel}</p>
-                  </div>
-                  <div className="rounded-2xl bg-slate-950/40 border border-white/5 p-3.5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Flow Trend</p>
-                    <p className="mt-1 text-xs font-extrabold text-emerald-400">📈 {selectedZone.trend}</p>
+
+                  {/* Right Column: Simulated CCTV monitor Feed (5 cols) */}
+                  <div className="md:col-span-5 flex flex-col justify-between">
+                    <div className="relative aspect-video rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden flex flex-col justify-between p-3 select-none">
+                      {/* Scanline pattern layer */}
+                      <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] pointer-events-none z-10 opacity-70" />
+                      
+                      {/* Sweep radar visual */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-blue-500/0 via-blue-500/[0.03] to-blue-500/[0.08] pointer-events-none animate-radar-sweep origin-top z-0" />
+                      
+                      {/* Top feed metadata */}
+                      <div className="flex justify-between items-center z-10 relative text-[9px] font-mono font-bold text-emerald-400">
+                        <span className="flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping" />
+                          LIVE_CAM_0{selectedZoneId.charCodeAt(0) % 9 + 1}
+                        </span>
+                        <span>1080P // 30FPS</span>
+                      </div>
+
+                      {/* Center radar target target lines */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                        {/* Target reticle */}
+                        <div className="h-12 w-12 border border-emerald-500/20 rounded-full flex items-center justify-center">
+                          <div className="h-4 w-4 border border-emerald-500/30 rounded-full" />
+                        </div>
+                        {/* Crosshairs */}
+                        <div className="absolute h-16 w-[1px] bg-emerald-500/10" />
+                        <div className="absolute w-16 h-[1px] bg-emerald-500/10" />
+                      </div>
+
+                      {/* Bottom Feed metadata */}
+                      <div className="flex justify-between items-end z-10 relative text-[8px] font-mono text-slate-400 mt-6 md:mt-12">
+                        <div className="flex flex-col gap-0.5">
+                          <span>ZONE: {selectedZoneId}</span>
+                          <span>RISK_FACTOR: {selectedZone.riskScore}%</span>
+                        </div>
+                        <span className="text-right text-emerald-400 font-bold">{timeString}</span>
+                      </div>
+                    </div>
+                    
+                    <p className="text-[10px] text-slate-400 italic mt-3 leading-normal text-left">
+                      💡 Click other sectors on the map to switch active CCTV camera monitoring feeds.
+                    </p>
                   </div>
                 </div>
-
-                {selectedInsight.reasons.length > 0 && (
-                  <div className="mt-4 border-t border-white/5 pt-3.5">
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                      Anomaly Factors & Telemetry
-                    </h4>
-                    <ul className="mt-2 list-none text-xs text-slate-300 space-y-1.5 pl-0">
-                      {selectedInsight.reasons.map((r, idx) => (
-                        <li key={idx} className="flex gap-2 rounded-xl bg-slate-950/30 border border-white/5 px-2.5 py-2 leading-relaxed">
-                          <span className="text-blue-400">▶</span>
-                          <span>{r}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
             )}
           </section>
+
+          {/* Resource Deployment Posture */}
+          <ResourceDeployment state={state} />
+
+          {/* Live Activity Timeline */}
+          <LiveActivityTimeline state={state} />
         </div>
 
         {/* RIGHT COLUMN: Decisions, Active Alerts & Copilot Chat (Col 4) */}
         <div className="lg:col-span-4 flex flex-col gap-6 w-full">
           
           {/* Tactical Decisions Panel (Directives) */}
-          <section className="rounded-3xl border border-slate-800 bg-slate-900/40 p-5 shadow-xl backdrop-blur-md flex flex-col" aria-label="Tactical Decisions and Directives">
-            <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-3">
-              <div className="flex items-center gap-2">
-                <Activity className="h-4.5 w-4.5 text-amber-400" />
-                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Tactical Directives</h2>
-              </div>
-              <StatusBadge label={String(decisions.length)} tone="neutral" />
-            </div>
-
-            <div className="space-y-4 flex-1">
-              {decisions.length === 0 ? (
-                <div className="rounded-2xl border border-white/5 bg-slate-950/30 p-8 text-center text-xs text-slate-400">
-                  All systems nominal. No active directives.
-                </div>
-              ) : (
-                decisions.map(dec => (
-                  <div key={dec.id} className="rounded-2xl border border-slate-800 bg-slate-950/85 p-4 space-y-3 transition duration-200 hover:border-slate-700">
-                    <div className="flex items-start justify-between gap-2 border-b border-white/5 pb-2.5">
-                      <h3 className="text-xs font-black text-white leading-tight">{dec.title}</h3>
-                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest ${
-                        dec.priority === 'CRITICAL' ? 'bg-red-500/20 border border-red-500/30 text-red-200' : 'bg-orange-500/20 border border-orange-500/30 text-orange-200'
-                      }`}>
-                        {dec.priority}
-                      </span>
-                    </div>
-
-                    <div className="text-xs text-slate-300 space-y-1.5">
-                      <p className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">Rule Trigger Facts:</p>
-                      <ul className="list-none pl-0 space-y-1">
-                        {dec.rationaleFacts.map((fact, idx) => (
-                          <li key={idx} className="flex gap-2 text-slate-300 leading-relaxed">
-                            <span className="text-slate-500">·</span>
-                            <span>{fact}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="text-xs text-slate-300 space-y-1.5 pt-1">
-                      <p className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">Playbook Directives:</p>
-                      <ul className="list-none pl-0 space-y-1">
-                        {dec.recommendedActions.map((act, idx) => (
-                          <li key={idx} className="flex gap-2 text-slate-200 font-medium leading-relaxed bg-slate-900/40 border border-white/5 rounded-xl px-2 py-1.5">
-                            <span className="text-blue-400">✓</span>
-                            <span>{act}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <button
-                      onClick={() => handleGenerateBroadcast(dec.id)}
-                      className="mt-3.5 w-full rounded-xl bg-blue-950 hover:bg-blue-900 border border-blue-800 text-blue-200 py-2.5 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-blue-950/20 cursor-pointer"
-                      aria-label={`Generate PA Broadcast for ${dec.title}`}
-                    >
-                      <span>🗣️</span>
-                      Generate PA Broadcast Draft
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
+          <TacticalPanel
+            decisions={decisions}
+            avgRiskScore={avgRiskScore}
+            onGenerateBroadcast={handleGenerateBroadcast}
+          />
 
           {/* Active Field Alerts Segment */}
-          <section className="rounded-3xl border border-slate-800 bg-slate-900/40 p-5 shadow-xl backdrop-blur-md" aria-label="Active Field Incident Alerts">
+          <IncidentCenter
+            activeIncidents={activeIncidents}
+            onGenerateBroadcast={handleGenerateBroadcast}
+          />
+
+          {/* Tactical Dispatch & Radio Feeds */}
+          <section className="rounded-3xl border border-slate-800 bg-slate-900/40 p-5 shadow-xl backdrop-blur-md" aria-label="Tactical Dispatch & Radio Logs">
             <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-3">
               <div className="flex items-center gap-2">
-                <ShieldAlert className="h-4.5 w-4.5 text-rose-400" />
-                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Active Field Alerts</h2>
+                <span className="text-[14px]">📡</span>
+                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Operations Radio & Dispatch Logs</h2>
               </div>
-              <StatusBadge label={String(activeIncidents.length)} tone={activeIncidents.length > 0 ? 'danger' : 'success'} />
+              <span className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)] animate-pulse" />
+            </div>
+
+            <div className="space-y-3 font-mono text-[11px] leading-relaxed max-h-[220px] overflow-y-auto pr-1">
+              {[
+                { time: "20:04:12", sender: "DISPATCH_CH_4", text: "Crowd bottleneck at Plaza North gates fully resolved. Gate scanners operating at 100% capacity.", type: "info" },
+                { time: "20:01:45", sender: "MEDICAL_POST_1", text: "First responder on scene at Lower Concourse Sector C. Heat exhaustion symptoms treated. Ref: MED_A4", type: "success" },
+                { time: "19:58:30", sender: "W_ELEVATOR_LOBBY", text: "Elevator Priority Corridor cleared for wheelchair group access. Congestion index returned to Stable.", type: "success" },
+                { time: "19:55:18", sender: "STADIUM_ENG_2", text: "Gate A electronic turnstile card readers rebooted. Fully operational and syncing with local server.", type: "warning" },
+                { time: "19:52:04", sender: "HQ_CH_1", text: "Security escort dispatched to emergency corridor route link to inspect secondary lock gate.", type: "info" }
+              ].map((log, idx) => (
+                <div key={idx} className="rounded-xl border border-white/5 bg-slate-950/70 p-3 flex gap-2">
+                  <span className="text-slate-500 shrink-0 font-bold">[{log.time}]</span>
+                  <div>
+                    <span className={`font-black uppercase tracking-wider text-[10px] block mb-0.5 ${
+                      log.type === 'warning' ? 'text-amber-400' :
+                      log.type === 'success' ? 'text-emerald-400' : 'text-blue-400'
+                    }`}>
+                      {log.sender}
+                    </span>
+                    <span className="text-slate-300">{log.text}</span>
+                  </div>
+                </div>
+              ))}
             </div>
             
-            <div className="space-y-3">
-              {activeIncidents.length === 0 ? (
-                <div className="rounded-2xl border border-white/5 bg-slate-950/30 p-6 text-center text-xs text-slate-400">
-                  <span className="block text-emerald-400 font-bold mb-1">✓ No incidents active</span>
-                  Stadium flow and safety telemetry are normal.
-                </div>
-              ) : (
-                activeIncidents.map(inc => (
-                  <div key={inc.id} className="rounded-2xl border border-rose-500/15 bg-rose-950/10 p-4 text-xs transition duration-200 hover:border-rose-500/30">
-                    <div className="flex items-center justify-between font-extrabold border-b border-rose-500/5 pb-2">
-                      <span className="text-rose-400 text-[13px]">{inc.title}</span>
-                      <span className="rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-300 px-2.5 py-0.5 uppercase text-[9px] font-mono font-bold tracking-wider">{inc.severity}</span>
-                    </div>
-                    <p className="mt-2 text-slate-300 leading-relaxed">{inc.description}</p>
-                    <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500 font-mono">
-                      <span>Sector: <strong className="text-slate-400">{inc.zoneId}</strong></span>
-                      <span className="flex items-center gap-1">
-                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping" />
-                        Live dispatch
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            <p className="mt-3.5 text-[10px] text-slate-500 font-sans italic text-center leading-normal">
+              Continuous stadium operations radio monitoring • USA vs GER matchday feed active.
+            </p>
           </section>
 
           {/* Operations Copilot & Q&A Chat terminal */}
@@ -1012,6 +1142,12 @@ export function OperationsPage() {
 
         </div>
       </div>
+        </>
+      ) : activeTab === 'TWIN' ? (
+        <DigitalTwinDashboard state={state} />
+      ) : (
+        <PlaybookDashboard state={state} onAdvanceTick={handleAdvanceTick} />
+      )}
 
       {/* Broadcast Announcement Modal */}
       {broadcastText !== null && (

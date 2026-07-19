@@ -1,24 +1,21 @@
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { AssistantProvider, useAssistant } from '../context/AssistantContext';
 import { FloatingAssistant } from './ui/FloatingAssistant';
+import { useAuth } from '../hooks/useAuth';
+import { AnnouncementsBar } from './AnnouncementsBar';
+import { LiveMatchStatusBar } from './LiveMatchStatusBar';
 
 function LayoutContent() {
-  const location = useLocation();
   const { selectedZoneId, stadiumState } = useAssistant();
-
-  let role: 'OPERATIONS' | 'FAN' | 'VOLUNTEER' | null = null;
-  if (location.pathname.startsWith('/operations')) {
-    role = 'OPERATIONS';
-  } else if (location.pathname.startsWith('/fan')) {
-    role = 'FAN';
-  } else if (location.pathname.startsWith('/volunteer')) {
-    role = 'VOLUNTEER';
-  }
+  const { user } = useAuth();
+  const role = user?.role || null;
 
   return (
     <div className="flex min-h-[100svh] w-full flex-col bg-arena-navy text-slate-100">
+      <AnnouncementsBar />
+      <LiveMatchStatusBar />
       <Header />
       <main id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col">
         <Outlet />

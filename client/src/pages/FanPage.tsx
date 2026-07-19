@@ -17,7 +17,6 @@ import { KpiCard } from '@/components/ui/KpiCard';
 import { LoadingSkeleton, KpiCardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useAssistant } from '../context/AssistantContext';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { StadiumState, RouteResult, CopilotResponse } from '../types';
 
@@ -98,6 +97,7 @@ export function FanPage() {
   const [chatInput, setChatInput] = useState<string>('');
   const [chatHistory, setChatHistory] = useState<{ sender: 'user' | 'assistant'; text: string; aiPowered: boolean }[]>([]);
   const [chatLoading, setChatLoading] = useState<boolean>(false);
+  const [orderStatus, setOrderStatus] = useState<string | null>(null);
 
   // Load stadium state for alert banners
   const fetchStadiumState = async () => {
@@ -231,19 +231,45 @@ export function FanPage() {
   const nearbyServices = NEARBY_SERVICES_MAP[destNode] || DEFAULT_SERVICES;
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 min-h-screen">
+    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 min-h-screen">
       {/* Back button */}
       <div className="mb-4">
         <BackLink label="Back to Launcher" />
       </div>
 
-      <header className="mb-6">
-        <SectionHeader
-          eyebrow="Match-Day Digital Assistant"
-          title="Match-Day Companion"
-          description="Live wayfinding instructions, detour notifications, service maps, and instant AI guidance."
-          action={<StatusBadge label={stadiumState ? stadiumState.matchPhase.replace(/_/g, ' ') : 'Live'} tone="success" />}
-        />
+      {/* High-Fidelity World Cup Fan Matchday Portal Header */}
+      <header className="relative overflow-hidden rounded-3xl border border-emerald-500/10 bg-slate-900/40 p-6 shadow-2xl mb-6 backdrop-blur-xl">
+        <div className="absolute top-0 right-0 -mt-16 -mr-16 h-48 w-48 rounded-full bg-emerald-500/10 blur-2xl" />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                🏆 WORLD CUP 2026™ FAN COMPANION
+              </span>
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Section Gateways</span>
+            </div>
+            
+            {/* Team Header Display */}
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-white font-sans">🇺🇸 USA</span>
+                <span className="text-xs text-slate-400 font-medium">vs</span>
+                <span className="text-sm font-black text-white font-sans">🇩🇪 GERMANY</span>
+              </div>
+              <span className="text-[11px] text-slate-500 font-semibold">• Group Stage Match 18</span>
+            </div>
+
+            <p className="text-xs text-slate-400 mt-1.5 max-w-xl">
+              Wayfinding navigation optimized dynamically from crowd posture sensors. Avoid crowded stairs or lift queues.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 bg-slate-950/70 p-3 rounded-2xl border border-white/5 shrink-0 self-start sm:self-center">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Sim Phase:</span>
+            <StatusBadge label={stadiumState ? stadiumState.matchPhase.replace(/_/g, ' ') : 'PRE MATCH'} tone="success" />
+          </div>
+        </div>
       </header>
 
       {/* KPI Stats */}
@@ -257,23 +283,23 @@ export function FanPage() {
         ) : (
           <>
             <KpiCard 
-              label="Safety alerts" 
+              label="Active Safety Alerts" 
               value={String(activeIncidents.length)} 
-              helper="Direct path blockages reported" 
+              helper={activeIncidents.length > 0 ? `${activeIncidents.length} hazard reports` : "Concourse routes clear"} 
               icon={ShieldAlert} 
               tone={activeIncidents.length > 0 ? 'danger' : 'success'} 
             />
             <KpiCard 
-              label="Accessibility" 
-              value={accessibilityRequired ? 'Step-Free' : 'Standard'} 
-              helper="Preferred path configuration" 
+              label="Path Mode" 
+              value={accessibilityRequired ? 'Step-Free Active' : 'Standard Paths'} 
+              helper={accessibilityRequired ? "Ramps & lifts prioritized" : "Stairs and plazas included"} 
               icon={Accessibility} 
               tone={accessibilityRequired ? 'success' : 'default'} 
             />
             <KpiCard 
-              label="Estimated walk" 
-              value={routeResult ? `${routeResult.estimatedWalkingTimeMinutes} mins` : 'Select Path'} 
-              helper="Calculated from real-time queues" 
+              label="Walking Estimate" 
+              value={routeResult ? `${routeResult.estimatedWalkingTimeMinutes} mins` : 'Select Destination'} 
+              helper={routeResult ? `Physical distance: ${routeResult.totalDistance}m` : "Select points to calculate"} 
               icon={Route} 
               tone={routeResult ? 'success' : 'default'} 
             />
@@ -341,6 +367,46 @@ export function FanPage() {
                 </select>
               </div>
 
+              {/* Wayfinding and Accessibility Quick Presets */}
+              <div className="pt-1.5 pb-0.5">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-1.5">♿ Accessibility & Quick Presets:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStartNode('METRO_STATION');
+                      setDestNode('STAND_EAST');
+                      setAccessibilityRequired(true);
+                    }}
+                    className="rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 px-2 py-1 text-[10px] font-medium hover:bg-emerald-500/20 transition-all cursor-pointer"
+                  >
+                    ♿ Step-Free East Stand
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStartNode('PLAZA_NORTH');
+                      setDestNode('MEDICAL_POST_1');
+                      setAccessibilityRequired(false);
+                    }}
+                    className="rounded-lg bg-red-500/10 border border-red-500/25 text-red-300 px-2 py-1 text-[10px] font-medium hover:bg-red-500/20 transition-all cursor-pointer"
+                  >
+                    🩺 Medical Station 1
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStartNode('METRO_STATION');
+                      setDestNode('FOOD_COURT_A');
+                      setAccessibilityRequired(false);
+                    }}
+                    className="rounded-lg bg-blue-500/10 border border-blue-500/25 text-blue-300 px-2 py-1 text-[10px] font-medium hover:bg-blue-500/20 transition-all cursor-pointer"
+                  >
+                    🍔 Food Court A
+                  </button>
+                </div>
+              </div>
+
               {/* Accessibility */}
               <div className="flex items-center gap-3 pt-1">
                 <input
@@ -358,46 +424,177 @@ export function FanPage() {
               <button
                 type="submit"
                 disabled={routeLoading}
-                className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/10 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/10 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 {routeLoading ? 'Calculating optimal safe path...' : 'Calculate Wayfinding & Travel Time'}
               </button>
             </form>
           </section>
 
-          {/* Nearby Stadium Services Panel */}
+          {/* Nearby Stadium Services & Interactive Ordering */}
           <section className="rounded-3xl border border-slate-800 bg-slate-900/30 p-5 shadow-xl backdrop-blur-md">
             <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-3">
               <div className="flex items-center gap-2">
                 <Utensils className="h-4 w-4 text-emerald-400" />
-                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Nearby Services</h3>
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Concessions & Souvenirs</h3>
               </div>
-              <span className="text-[10px] uppercase font-bold text-slate-500">At Destination Sector</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500">Live preorder active</span>
             </div>
 
+            {orderStatus && (
+              <div className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-3.5 text-xs text-emerald-300 font-bold leading-relaxed relative animate-in fade-in zoom-in-95 duration-150">
+                <button 
+                  onClick={() => setOrderStatus(null)} 
+                  className="absolute top-2 right-2 text-emerald-400 hover:text-emerald-200 font-extrabold text-xs cursor-pointer"
+                  aria-label="Close message"
+                >
+                  ✕
+                </button>
+                <div className="flex items-start gap-2">
+                  <span className="text-base">🎉</span>
+                  <div>
+                    <p className="font-extrabold">Matchday Lock-in Confirmed!</p>
+                    <p className="mt-1 text-[11px] text-slate-300 font-normal">{orderStatus}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-3">
-              {nearbyServices.map((srv, idx) => (
-                <div key={idx} className="flex items-start justify-between rounded-2xl border border-white/5 bg-slate-950/40 p-3.5 hover:border-white/10 transition-colors">
+              {[
+                { name: "Official USA vs GER Match Scarf", price: "$28.00", icon: "🧣", desc: "Premium knit commemorative match souvenir", id: " scarf" },
+                { name: "Classic Arena Double Burger Meal", price: "$15.50", icon: "🍔", desc: "Flame-grilled beef, cheese, crispy fries & soda", id: "burger" },
+                { name: "FIFA 2026 Souvenir Matchday Program", price: "$10.00", icon: "📖", desc: "Collector's edition team lineups & roster review", id: "program" },
+                { name: "Chilled Premium Lager Can (16oz)", price: "$9.50", icon: "🍺", desc: "Served cold, must verify age at priority counter", id: "lager" }
+              ].map((item, idx) => (
+                <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-white/5 bg-slate-950/40 p-3.5 hover:border-white/10 transition-colors gap-3">
                   <div className="flex items-start gap-3">
-                    <span className="text-base p-1.5 rounded-xl bg-slate-900 border border-white/5 mt-0.5">
-                      {srv.type === 'food' ? '🍔' : srv.type === 'medical' ? '🩺' : srv.type === 'wc' ? '🚻' : '🛗'}
+                    <span className="text-lg p-2 rounded-xl bg-slate-900 border border-white/5 mt-0.5 shrink-0">
+                      {item.icon}
                     </span>
                     <div>
-                      <h4 className="text-xs font-bold text-white">{srv.name}</h4>
-                      <p className="text-[11px] text-slate-400 mt-0.5">{srv.detail}</p>
+                      <h4 className="text-xs font-bold text-white">{item.name}</h4>
+                      <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{item.desc}</p>
                     </div>
                   </div>
-                  <span className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2.5 py-0.5 text-[10px] font-mono font-bold shrink-0">
-                    {srv.distance}
-                  </span>
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 shrink-0">
+                    <span className="text-xs font-black text-emerald-400 font-mono">{item.price}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const randomCode = 'WC26-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+                        setOrderStatus(`Reservation Code: ${randomCode}. Your item is locked for pickup at Food Court A (Lower Concourse). Show this receipt stub at the fast-track counter to complete purchase!`);
+                      }}
+                      className="rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-2.5 py-1 text-[10px] font-black tracking-wide transition-all shadow cursor-pointer"
+                    >
+                      Pre-order
+                    </button>
+                  </div>
                 </div>
               ))}
+            </div>
+
+            {/* Default location list backup */}
+            <div className="mt-4 pt-3 border-t border-white/5 text-[11px] text-slate-400 leading-normal">
+              <span className="font-bold text-white block mb-1">📍 Nearest Concourse Points of Interest:</span>
+              <ul className="list-disc pl-4 space-y-0.5">
+                {nearbyServices.map((srv, idx) => (
+                  <li key={idx}>
+                    <strong className="text-slate-300">{srv.name}</strong> - {srv.distance} away ({srv.detail})
+                  </li>
+                ))}
+              </ul>
             </div>
           </section>
         </div>
 
         {/* RIGHT COLUMN: Results & AI explanation (Col 5) */}
         <div className="lg:col-span-5 flex flex-col gap-6 w-full">
+          
+          {/* Official Matchday Pass Ticket */}
+          <section className="rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 p-5 shadow-2xl relative overflow-hidden" aria-label="Digital Match Ticket">
+            <div className="absolute top-0 right-0 h-24 w-24 rounded-full bg-blue-500/10 blur-xl pointer-events-none" />
+            
+            {/* Top Ticket Header */}
+            <div className="flex items-center justify-between border-b border-dashed border-slate-700/60 pb-3 mb-3.5">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Official Entry Pass</span>
+              <span className="rounded bg-yellow-500/10 border border-yellow-500/30 px-2 py-0.5 text-[8px] font-black text-yellow-400 uppercase tracking-widest">
+                FIFA VIP ACCESS
+              </span>
+            </div>
+
+            {/* Stadium / Match Info */}
+            <div className="flex justify-between items-center gap-4 mb-4">
+              <div>
+                <p className="text-[9px] uppercase font-bold text-slate-500">Event Location</p>
+                <p className="text-xs font-black text-white">MetLife Stadium, NJ</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] uppercase font-bold text-slate-500">Date & Kickoff</p>
+                <p className="text-xs font-black text-white font-mono">June 18, 2026 • 20:00</p>
+              </div>
+            </div>
+
+            {/* Seat & Row Coordinates */}
+            <div className="grid grid-cols-4 gap-2 bg-slate-900/60 rounded-xl border border-white/5 p-2.5 mb-4 text-center">
+              <div>
+                <span className="text-[8px] uppercase font-bold text-slate-500 block">Gate</span>
+                <span className="text-xs font-black text-blue-400 font-mono">B-East</span>
+              </div>
+              <div>
+                <span className="text-[8px] uppercase font-bold text-slate-500 block">Sector</span>
+                <span className="text-xs font-black text-white font-mono">East</span>
+              </div>
+              <div>
+                <span className="text-[8px] uppercase font-bold text-slate-500 block">Row</span>
+                <span className="text-xs font-black text-white font-mono">14</span>
+              </div>
+              <div>
+                <span className="text-[8px] uppercase font-bold text-slate-500 block">Seat</span>
+                <span className="text-xs font-black text-emerald-400 font-mono">12</span>
+              </div>
+            </div>
+
+            {/* Simulated Barcode / QR Code */}
+            <div className="flex flex-col items-center bg-white p-3 rounded-2xl shadow-inner border border-slate-300">
+              {/* QR Code Grid Box */}
+              <div className="h-28 w-28 bg-slate-100 flex items-center justify-center relative p-1.5 border border-slate-200 rounded-lg">
+                <svg viewBox="0 0 100 100" className="h-full w-full fill-slate-900">
+                  <rect x="0" y="0" width="25" height="25" />
+                  <rect x="5" y="5" width="15" height="15" className="fill-white" />
+                  <rect x="10" y="10" width="5" height="5" />
+                  
+                  <rect x="75" y="0" width="25" height="25" />
+                  <rect x="80" y="5" width="15" height="15" className="fill-white" />
+                  <rect x="85" y="10" width="5" height="5" />
+                  
+                  <rect x="0" y="75" width="25" height="25" />
+                  <rect x="5" y="80" width="15" height="15" className="fill-white" />
+                  <rect x="10" y="85" width="5" height="5" />
+                  
+                  {/* Random QR bits */}
+                  <rect x="35" y="10" width="10" height="5" />
+                  <rect x="50" y="5" width="5" height="15" />
+                  <rect x="60" y="20" width="10" height="10" />
+                  <rect x="15" y="35" width="20" height="5" />
+                  <rect x="40" y="40" width="15" height="15" />
+                  <rect x="10" y="55" width="5" height="10" />
+                  <rect x="65" y="50" width="15" height="5" />
+                  <rect x="80" y="40" width="10" height="20" />
+                  <rect x="30" y="65" width="25" height="10" />
+                  <rect x="65" y="75" width="15" height="15" />
+                  <rect x="35" y="85" width="10" height="5" />
+                  <rect x="50" y="80" width="5" height="15" />
+                </svg>
+              </div>
+              <span className="text-[8px] font-mono font-bold tracking-[0.3em] text-slate-500 mt-2">MEMBER_48920_VIP</span>
+            </div>
+
+            {/* Micro warning */}
+            <p className="text-[9px] text-center text-slate-500 mt-3 leading-normal">
+              Keep this QR pass active. Dynamic gates will authenticate and record entry telemetry at Plaza East.
+            </p>
+          </section>
           
           {routeError && (
             <div className="rounded-2xl border border-rose-500/20 bg-rose-950/10 p-4 text-xs text-rose-200" role="alert">

@@ -16,7 +16,6 @@ import { KpiCard } from '@/components/ui/KpiCard';
 import { LoadingSkeleton, KpiCardSkeleton, CopilotSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useAssistant } from '../context/AssistantContext';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { StadiumState, OperationalDecision, CopilotResponse } from '../types';
 
@@ -69,6 +68,46 @@ export function VolunteerPage() {
   const [chatInput, setChatInput] = useState<string>('');
   const [chatHistory, setChatHistory] = useState<{ sender: 'user' | 'assistant'; text: string; aiPowered: boolean }[]>([]);
   const [chatLoading, setChatLoading] = useState<boolean>(false);
+
+  // Interactive Volunteer States
+  const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
+  const [equipmentStatus, setEquipmentStatus] = useState<Record<string, string>>({
+    megaphone: 'OK (Charged)',
+    radio: 'Active Link',
+    firstaid: 'Inspected',
+    keycard: 'Verified'
+  });
+  const [equipmentReportMsg, setEquipmentReportMsg] = useState<string | null>(null);
+
+  // Live ticking shift countdown timer
+  const [shiftSeconds, setShiftSeconds] = useState<number>(2 * 3600 + 44 * 60 + 18);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShiftSeconds(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatShiftTime = (totalSecs: number) => {
+    const hours = Math.floor(totalSecs / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    return `${String(hours).padStart(2, '0')}h : ${String(minutes).padStart(2, '0')}m : ${String(secs).padStart(2, '0')}s`;
+  };
+
+  const getCompassHeading = (zoneId: string) => {
+    switch (zoneId) {
+      case 'PLAZA_NORTH': return { heading: '350° N', desc: 'Gates A & C • Transit Hub North', rotation: 350 };
+      case 'PLAZA_SOUTH': return { heading: '170° S', desc: 'Gates B & D • Transit Hub South', rotation: 170 };
+      case 'CONCOURSE_LOWER': return { heading: '90° E', desc: 'Sections 101-140 • Food Court A', rotation: 90 };
+      case 'CONCOURSE_UPPER': return { heading: '270° W', desc: 'Sections 201-240 • Food Court B', rotation: 270 };
+      case 'STAND_NORTH': return { heading: '0° N', desc: 'Lower Bowls • Section A-F', rotation: 0 };
+      case 'STAND_SOUTH': return { heading: '180° S', desc: 'Lower Bowls • Section G-M', rotation: 180 };
+      case 'STAND_EAST': return { heading: '90° E', desc: 'ADA Access Corridor East', rotation: 90 };
+      case 'STAND_WEST': return { heading: '270° W', desc: 'ADA Access Corridor West', rotation: 270 };
+      default: return { heading: '45° NE', desc: 'Wayfinding routing active', rotation: 45 };
+    }
+  };
 
   const fetchVolunteerData = async () => {
     try {
@@ -199,13 +238,38 @@ export function VolunteerPage() {
           <BackLink label="Back to Launcher" />
         </div>
 
-        <header className="mb-6">
-          <SectionHeader
-            eyebrow="Volunteer Tactical Network"
-            title="Volunteer Mission Console"
-            description="Fulfill assigned-sector briefs, complete priority field directives, and report live hazards."
-            action={<StatusBadge label="Syncing..." tone="neutral" />}
-          />
+        {/* High-Fidelity World Cup Volunteer Console Header */}
+        <header className="relative overflow-hidden rounded-3xl border border-amber-500/10 bg-slate-900/40 p-6 shadow-2xl mb-6 backdrop-blur-xl">
+          <div className="absolute top-0 right-0 -mt-16 -mr-16 h-48 w-48 rounded-full bg-amber-500/10 blur-2xl" />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-400">
+                  🛡️ WORLD CUP 2026™ VOLUNTEER SQUAD
+                </span>
+                <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Radio Uplink Channel 4 Active</span>
+              </div>
+              
+              <div className="mt-3 flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-black text-white font-sans">🇺🇸 USA</span>
+                  <span className="text-xs text-slate-400 font-medium">vs</span>
+                  <span className="text-sm font-black text-white font-sans">🇩🇪 GERMANY</span>
+                </div>
+                <span className="text-[11px] text-slate-500 font-semibold">• Group Stage Match 18</span>
+              </div>
+
+              <p className="text-xs text-slate-400 mt-1.5 max-w-xl">
+                Execute playbooks and direct fan wayfinding based on sector dispatch feeds. Report blockages or safety events immediately.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 bg-slate-950/70 p-3 rounded-2xl border border-white/5 shrink-0 self-start sm:self-center">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Sim Phase:</span>
+              <StatusBadge label="Syncing..." tone="neutral" />
+            </div>
+          </div>
         </header>
 
         {/* KPI stats skeleton */}
@@ -289,19 +353,45 @@ export function VolunteerPage() {
   const assignedTasks = decisions.filter(dec => dec.affectedLocations.includes(assignedZoneId));
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 min-h-screen">
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 min-h-screen">
       {/* Back button */}
       <div className="mb-4">
         <BackLink label="Back to Launcher" />
       </div>
 
-      <header className="mb-6">
-        <SectionHeader
-          eyebrow="Volunteer Tactical Network"
-          title="Volunteer Mission Console"
-          description="Fulfill assigned-sector briefs, complete priority field directives, and report live hazards."
-          action={<StatusBadge label={`${stadiumState.matchPhase.replace(/_/g, ' ')}`} tone="warning" />}
-        />
+      {/* High-Fidelity World Cup Volunteer Console Header */}
+      <header className="relative overflow-hidden rounded-3xl border border-amber-500/10 bg-slate-900/40 p-6 shadow-2xl mb-6 backdrop-blur-xl">
+        <div className="absolute top-0 right-0 -mt-16 -mr-16 h-48 w-48 rounded-full bg-amber-500/10 blur-2xl" />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-400">
+                🛡️ WORLD CUP 2026™ VOLUNTEER SQUAD
+              </span>
+              <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Radio Uplink Channel 4 Active</span>
+            </div>
+            
+            {/* Team Header Display */}
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-white font-sans">🇺🇸 USA</span>
+                <span className="text-xs text-slate-400 font-medium">vs</span>
+                <span className="text-sm font-black text-white font-sans">🇩🇪 GERMANY</span>
+              </div>
+              <span className="text-[11px] text-slate-500 font-semibold">• Group Stage Match 18</span>
+            </div>
+
+            <p className="text-xs text-slate-400 mt-1.5 max-w-xl">
+              Execute playbooks and direct fan wayfinding based on sector dispatch feeds. Report blockages or safety events immediately.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 bg-slate-950/70 p-3 rounded-2xl border border-white/5 shrink-0 self-start sm:self-center">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Sim Phase:</span>
+            <StatusBadge label={`${stadiumState.matchPhase.replace(/_/g, ' ')}`} tone="warning" />
+          </div>
+        </div>
       </header>
 
       {/* KPI stats */}
@@ -309,20 +399,20 @@ export function VolunteerPage() {
         <KpiCard 
           label="Assigned Sector" 
           value={assignedZone?.name ?? assignedZoneId} 
-          helper="Current active station" 
+          helper="Your active patrol station" 
           icon={MapPinned} 
         />
         <KpiCard 
           label="Dispatch Alerts" 
           value={String(activeIncidents.length)} 
-          helper="Hazards active in stadium" 
+          helper={activeIncidents.length > 0 ? "Dispatch teams deployed" : "No active emergencies"} 
           icon={ShieldAlert} 
           tone={activeIncidents.length > 0 ? 'danger' : 'success'} 
         />
         <KpiCard 
           label="Directives" 
           value={String(assignedTasks.length)} 
-          helper="Playbooks active in your zone" 
+          helper={assignedTasks.length > 0 ? "Fulfill custom checklists" : "Standard patrol duties"} 
           icon={ClipboardList} 
           tone={assignedTasks.length > 0 ? 'warning' : 'default'} 
         />
@@ -380,55 +470,146 @@ export function VolunteerPage() {
                 </span>
               </div>
 
-              {/* AI Mission Briefing Box */}
-              <div className="mt-4 rounded-2xl border border-white/5 bg-slate-950/60 p-4">
-                <div className="flex items-center justify-between mb-2.5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-blue-300 flex items-center gap-1.5">
-                    <Radio className="h-4 w-4 text-emerald-400 animate-pulse" />
-                    AI Mission Briefing
-                  </h3>
-                  {!briefAiPowered && (
-                    <span className="text-[9px] font-bold text-amber-400 uppercase">Factual Backup</span>
-                  )}
+              {/* Dynamic Station Dashboard Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 mt-4">
+                {/* Left side: AI Mission brief (7 cols) */}
+                <div className="md:col-span-7 rounded-2xl border border-white/5 bg-slate-950/60 p-4 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-blue-300 flex items-center gap-1.5">
+                        <Radio className="h-4 w-4 text-emerald-400 animate-pulse" />
+                        AI Mission Briefing
+                      </h3>
+                      {!briefAiPowered && (
+                        <span className="text-[9px] font-bold text-amber-400 uppercase">Factual Backup</span>
+                      )}
+                    </div>
+                    
+                    <div className="text-xs leading-relaxed text-slate-200">
+                      {briefLoading ? (
+                        <LoadingSkeleton lines={3} />
+                      ) : (
+                        <AIResponseCard content={volunteerBrief} title="Sector Mission Directive" />
+                      )}
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="mt-2 text-xs leading-relaxed text-slate-200">
-                  {briefLoading ? (
-                    <LoadingSkeleton lines={3} />
-                  ) : (
-                    <AIResponseCard content={volunteerBrief} title="Sector Mission Directive" />
-                  )}
+
+                {/* Right side: Dynamic Seating & Transit Wayfinding Compass (5 cols) */}
+                <div className="md:col-span-5 rounded-2xl border border-white/5 bg-slate-950/60 p-4 flex flex-col justify-between">
+                  <div>
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2.5">WAYFINDING COMPASS</span>
+                    
+                    <div className="flex items-center gap-4">
+                      {/* Compass Circle graphic */}
+                      <div className="relative h-16 w-16 rounded-full border-2 border-slate-800 flex items-center justify-center bg-slate-900 overflow-hidden shrink-0">
+                        {/* Dial marks */}
+                        <div className="absolute inset-0 border border-dashed border-white/5 rounded-full" />
+                        <span className="absolute top-1 text-[7px] font-bold text-slate-600 font-mono">N</span>
+                        <span className="absolute bottom-1 text-[7px] font-bold text-slate-600 font-mono">S</span>
+                        <span className="absolute right-1 text-[7px] font-bold text-slate-600 font-mono">E</span>
+                        <span className="absolute left-1 text-[7px] font-bold text-slate-600 font-mono">W</span>
+
+                        {/* Rotating indicator needle */}
+                        <div 
+                          className="h-full w-1 transition-all duration-1000 ease-out relative"
+                          style={{ transform: `rotate(${getCompassHeading(assignedZoneId).rotation}deg)` }}
+                        >
+                          {/* Red needle tip */}
+                          <div className="absolute top-0 left-1/2 -translate-x-1/2 h-4 w-1 bg-amber-500 rounded-full" />
+                        </div>
+                      </div>
+
+                      {/* Direction descriptions */}
+                      <div className="text-xs">
+                        <span className="block text-[13px] font-black text-amber-400 font-mono">{getCompassHeading(assignedZoneId).heading}</span>
+                        <p className="text-slate-400 leading-snug mt-1 font-medium">{getCompassHeading(assignedZoneId).desc}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-white/5 text-[9px] text-slate-500 font-semibold uppercase leading-normal">
+                    Assisting sector spectator ingress/egress wayfinding.
+                  </div>
                 </div>
               </div>
 
-              {/* Priority Tasks derived from Decisions */}
+              {/* Dynamic Sector Checklists & Progress Tracker */}
               <div className="mt-5 pt-4 border-t border-white/5">
-                <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                  <ClipboardList className="h-4 w-4 text-amber-400" />
-                  Sector Checklists
-                </h3>
-                
-                {assignedTasks.length === 0 ? (
-                  <div className="rounded-xl border border-white/5 bg-slate-950/20 p-4 text-center text-xs text-slate-400">
-                    ✓ All clear. Complete standard safety observation.
-                  </div>
-                ) : (
-                  <ul className="space-y-2.5">
-                    {assignedTasks.map(dec => (
-                      <li key={dec.id} className="flex gap-3 rounded-2xl border border-amber-500/10 bg-amber-950/5 p-3.5 hover:border-amber-500/20 transition-all">
-                        <input
-                          type="checkbox"
-                          className="h-4.5 w-4.5 rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-500 mt-0.5"
-                          id={`task-${dec.id}`}
+                {(() => {
+                  const ROUTINE_TASKS = [
+                    { id: 'routine-1', title: 'Verify Accessible Pathways', desc: 'Ensure elevator hallways and step-free ramps are free of obstructions.' },
+                    { id: 'routine-2', title: 'Megaphone Power Check', desc: 'Confirm hand-held safety megaphone is fully charged and in standby mode.' },
+                    { id: 'routine-3', title: 'Egress Signage Sweep', desc: 'Inspect emergency exit doors and directional arrows in your sector.' }
+                  ];
+
+                  const combinedTasks = [
+                    ...ROUTINE_TASKS,
+                    ...assignedTasks.map(dec => ({
+                      id: `assigned-${dec.id}`,
+                      title: dec.title,
+                      desc: dec.communicationRequired.volunteerInstruction
+                    }))
+                  ];
+
+                  const completedCount = combinedTasks.filter(t => completedTasks[t.id]).length;
+                  const totalCount = combinedTasks.length;
+                  const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                          <ClipboardList className="h-4 w-4 text-amber-400" />
+                          Sector Activity Checklists
+                        </h3>
+                        <span className="text-[10px] font-bold font-mono text-amber-400">
+                          {completedCount} / {totalCount} Done ({progressPct}%)
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="h-2 w-full rounded-full bg-slate-950/80 overflow-hidden border border-white/5">
+                        <div 
+                          className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-500 rounded-full"
+                          style={{ width: `${progressPct}%` }}
                         />
-                        <div className="text-xs">
-                          <label htmlFor={`task-${dec.id}`} className="font-extrabold text-white cursor-pointer select-none leading-snug">{dec.title}</label>
-                          <p className="mt-1 leading-relaxed text-slate-300">{dec.communicationRequired.volunteerInstruction}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                      </div>
+
+                      <ul className="space-y-2.5">
+                        {combinedTasks.map(item => (
+                          <li 
+                            key={item.id} 
+                            className={`flex gap-3 rounded-2xl border p-3.5 transition-all duration-300 ${
+                              completedTasks[item.id] 
+                                ? 'bg-emerald-950/10 border-emerald-500/20 opacity-70' 
+                                : 'bg-slate-950/30 border-white/5 hover:border-amber-500/10'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={!!completedTasks[item.id]}
+                              onChange={(e) => {
+                                setCompletedTasks(prev => ({
+                                  ...prev,
+                                  [item.id]: e.target.checked
+                                }));
+                              }}
+                              className="h-4.5 w-4.5 rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-500 mt-0.5 cursor-pointer"
+                              id={`task-${item.id}`}
+                            />
+                            <div className="text-xs">
+                              <label htmlFor={`task-${item.id}`} className="font-extrabold text-white cursor-pointer select-none leading-snug block">
+                                {item.title}
+                              </label>
+                              <p className="mt-1 leading-relaxed text-slate-400">{item.desc}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
               </div>
             </section>
           )}
@@ -523,9 +704,45 @@ export function VolunteerPage() {
           </section>
         </div>
 
-        {/* RIGHT COLUMN: Broadcasts & Chat (Col 5) */}
+        {/* RIGHT COLUMN: Broadcasts, Handover Logs & Chat (Col 5) */}
         <div className="lg:col-span-5 flex flex-col gap-6 w-full">
           
+          {/* Volunteer Shift Tracker Console */}
+          <section className="rounded-3xl border border-amber-500/10 bg-gradient-to-br from-slate-900 to-amber-950/20 p-5 shadow-xl backdrop-blur-md relative overflow-hidden" aria-label="Volunteer Shift Console">
+            <div className="absolute top-0 right-0 h-16 w-16 bg-amber-500/5 rounded-full blur-xl pointer-events-none" />
+            <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-3.5">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+                Shift Console Active
+              </span>
+              <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[9px] font-black text-amber-400 font-mono tracking-wider">
+                VOL-2026-N90
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-400 font-semibold">Active Roster Duty:</span>
+                <span className="text-white font-black">Plaza & Concourse Safety Shift 1B</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-400 font-semibold">Shift Countdown:</span>
+                <span className="text-amber-400 font-extrabold font-mono animate-pulse">{formatShiftTime(shiftSeconds)}</span>
+              </div>
+              
+              {/* Shift progress tracker */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <span>Shift Timeline</span>
+                  <span>65% Elapsed</span>
+                </div>
+                <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                  <div className="h-full w-[65%] bg-amber-500 rounded-full" />
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* Broadcast announcements feed */}
           <section className="rounded-3xl border border-slate-800 bg-slate-900/30 p-5 shadow-xl backdrop-blur-md" aria-label="Field Emergency Broadcasts">
             <div className="mb-4 flex items-center gap-2 border-b border-white/5 pb-3">
@@ -546,6 +763,58 @@ export function VolunteerPage() {
                   </div>
                 ))
               )}
+            </div>
+          </section>
+
+          {/* Equipment Handover Logs & Supply Checklist */}
+          <section className="rounded-3xl border border-slate-800 bg-slate-900/30 p-5 shadow-xl backdrop-blur-md" aria-label="Equipment Logs">
+            <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-3">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Equipment Handover Logs</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500">Inspected Gear</span>
+            </div>
+
+            {equipmentReportMsg && (
+              <div className="mb-3 rounded-xl border border-amber-500/20 bg-amber-950/20 p-3 text-[11px] text-amber-300 font-semibold relative">
+                <button onClick={() => setEquipmentReportMsg(null)} className="absolute top-1.5 right-2 text-amber-400 font-extrabold text-[10px] cursor-pointer">✕</button>
+                {equipmentReportMsg}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { label: "Safety Megaphone", key: "megaphone", desc: "UHF Siren Loudspeaker" },
+                { label: "Radio Set #12", key: "radio", desc: "Tactical Dispatch Link" },
+                { label: "First Aid Pack B", key: "firstaid", desc: "Trauma Dressing Kit" },
+                { label: "Zone Gate Keycard", key: "keycard", desc: "All-Sector Pass" }
+              ].map(item => (
+                <div key={item.key} className="rounded-2xl border border-white/5 bg-slate-950/40 p-3 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[11px] font-black text-white block">{item.label}</span>
+                    <span className="text-[9px] text-slate-500 block mt-0.5">{item.desc}</span>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Status: <strong className="text-amber-400 font-mono">{equipmentStatus[item.key]}</strong></span>
+                    <select
+                      value={equipmentStatus[item.key]}
+                      onChange={(e) => {
+                        const nextVal = e.target.value;
+                        setEquipmentStatus(prev => ({ ...prev, [item.key]: nextVal }));
+                        if (nextVal === 'Report Issue') {
+                          setEquipmentReportMsg(`⚠️ Maintenance Alert logged for ${item.label}. Stadium operations has been dispatched to deliver a spare unit to your sector.`);
+                        } else {
+                          setEquipmentReportMsg(null);
+                        }
+                      }}
+                      className="w-full rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 py-1 px-1.5 focus:outline-none focus:border-amber-400 cursor-pointer"
+                    >
+                      <option value="Functional">Functional</option>
+                      <option value="Standby">Standby</option>
+                      <option value="Report Issue">Report Issue</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
 

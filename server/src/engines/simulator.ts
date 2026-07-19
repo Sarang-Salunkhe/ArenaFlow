@@ -8,6 +8,7 @@ import {
   Trend,
   AttentionLevel,
   GateStatus,
+  MatchState,
 } from '../types.js';
 
 // Initial stadium zones config
@@ -52,6 +53,19 @@ const INITIAL_TRANSPORT: TransportState = {
   taxiQueueSeconds: 60,
 };
 
+const INITIAL_MATCH: MatchState = {
+  minute: 0,
+  half: 'PRE_MATCH',
+  addedTime: 0,
+  status: 'Pre Match',
+  scoreHome: 0,
+  scoreAway: 0,
+  teamHome: 'Cascadia FC',
+  teamAway: 'Metro United',
+  importance: 'CRITICAL',
+  attendance: 12400,
+};
+
 let state: StadiumState = {
   matchPhase: 'PRE_MATCH',
   tickCount: 0,
@@ -59,13 +73,58 @@ let state: StadiumState = {
   gates: [],
   incidents: [],
   transport: { ...INITIAL_TRANSPORT },
+  match: { ...INITIAL_MATCH },
 };
+
+export function updateMatchState() {
+  const phase = state.matchPhase;
+  const tick = state.tickCount;
+
+  if (phase === 'PRE_MATCH') {
+    state.match.minute = 0;
+    state.match.half = 'PRE_MATCH';
+    state.match.status = 'Pre Match';
+    state.match.attendance = Math.min(22000 + tick * 1200, 28000);
+    state.match.addedTime = 0;
+  } else if (phase === 'ENTRY_SURGE') {
+    state.match.minute = 0;
+    state.match.half = 'PRE_MATCH';
+    state.match.status = 'Pre Match';
+    state.match.attendance = Math.min(28000 + tick * 3200, 58000);
+    state.match.addedTime = 0;
+  } else if (phase === 'MATCH_ACTIVE') {
+    state.match.minute = Math.min(45, Math.max(1, tick * 2));
+    state.match.half = 'FIRST_HALF';
+    state.match.status = 'First Half';
+    state.match.attendance = Math.min(58000 + tick * 400, 68500);
+    state.match.addedTime = 2;
+  } else if (phase === 'HALF_TIME') {
+    state.match.minute = 45;
+    state.match.half = 'HALF_TIME';
+    state.match.status = 'Half Time';
+    state.match.attendance = 68500;
+    state.match.addedTime = 0;
+  } else if (phase === 'MATCH_END') {
+    state.match.minute = Math.min(90, Math.max(46, 45 + tick * 2));
+    state.match.half = 'SECOND_HALF';
+    state.match.status = 'Second Half';
+    state.match.attendance = 68500;
+    state.match.addedTime = 4;
+  } else if (phase === 'EXIT_SURGE') {
+    state.match.minute = 90;
+    state.match.half = 'FINISHED';
+    state.match.status = 'Finished';
+    state.match.attendance = 68500;
+    state.match.addedTime = 0;
+  }
+}
 
 export function resetSimulation() {
   state.matchPhase = 'PRE_MATCH';
   state.tickCount = 0;
   state.incidents = [];
   state.transport = { ...INITIAL_TRANSPORT };
+  state.match = { ...INITIAL_MATCH };
   
   state.zones = INITIAL_ZONES.map(z => ({
     ...z,
@@ -81,6 +140,7 @@ export function resetSimulation() {
     trend: 'STABLE' as Trend,
   }));
 
+  updateMatchState();
   recalculateCrowdMetrics();
 }
 
@@ -147,6 +207,7 @@ export function setMatchPhase(phase: MatchPhase) {
   state.zones = state.zones.map(zone => ({ ...zone }));
   state.gates = state.gates.map(gate => ({ ...gate }));
   applyPhaseTargets();
+  updateMatchState();
   recalculateCrowdMetrics();
 }
 
@@ -294,35 +355,74 @@ export function advanceSimulation() {
     };
   });
 
+  updateMatchState();
+
+  // Automatic match developments during play
+  if (state.matchPhase === 'MATCH_ACTIVE' && state.tickCount === 8 && state.match.scoreHome === 0) {
+    // Cascadia FC scores!
+    state.match.scoreHome = 1;
+    state.incidents = [
+      ...state.incidents,
+      {
+        id: `auto_goal_home_${Date.now()}`,
+        zoneId: 'STAND_NORTH',
+        title: 'GOAL! Cascadia FC Scores!',
+        severity: 'LOW',
+        description: 'Cascadia FC takes the lead! Spectacular volley sparks immense roar and jumping celebrations in North Stand.',
+        active: true,
+        timestamp: new Date().toISOString(),
+      }
+    ];
+  } else if (state.matchPhase === 'MATCH_END' && state.tickCount === 12 && state.match.scoreAway === 0) {
+    // Metro United equalizes!
+    state.match.scoreAway = 1;
+    state.incidents = [
+      ...state.incidents,
+      {
+        id: `auto_goal_away_${Date.now()}`,
+        zoneId: 'STAND_SOUTH',
+        title: 'GOAL! Metro United Equalizer',
+        severity: 'LOW',
+        description: 'Metro United score an equalizer! Wild away support celebrations in South Stand Section S3.',
+        active: true,
+        timestamp: new Date().toISOString(),
+      }
+    ];
+  }
+
   recalculateCrowdMetrics();
 }
 
-export function triggerScenario(scenario: 'GATE_CONGESTION' | 'MEDICAL_INCIDENT' | 'ROUTE_CLOSURE' | 'EXIT_SURGE') {
+export function triggerScenario(scenario: string) {
   const nowStr = new Date().toISOString();
 
   switch (scenario) {
-    case 'GATE_CONGESTION': {
-      const gateA = state.gates.find(g => g.id === 'GATE_A');
-      if (gateA) {
-        gateA.status = 'RESTRICTED';
-        gateA.occupancy = Math.round(gateA.capacity * 0.95);
-        gateA.trend = 'RAPIDLY_RISING';
+    case 'GOAL': {
+      state.match.scoreHome += 1;
+      const standN = state.zones.find(z => z.id === 'STAND_NORTH');
+      if (standN) {
+        standN.occupancy = Math.min(standN.capacity, Math.round(standN.occupancy * 1.08));
+        standN.trend = 'RAPIDLY_RISING';
       }
-
-      const plazaN = state.zones.find(z => z.id === 'PLAZA_NORTH');
-      if (plazaN) {
-        plazaN.occupancy = Math.round(plazaN.capacity * 0.90);
-        plazaN.trend = 'RAPIDLY_RISING';
+      const standS = state.zones.find(z => z.id === 'STAND_SOUTH');
+      if (standS) {
+        standS.occupancy = Math.min(standS.capacity, Math.round(standS.occupancy * 1.05));
+        standS.trend = 'RAPIDLY_RISING';
       }
-
+      state.zones.forEach(z => {
+        if (z.type === 'SERVICE') {
+          z.occupancy = Math.min(z.capacity, Math.round(z.occupancy * 1.15));
+          z.trend = 'RISING';
+        }
+      });
       state.incidents = [
         ...state.incidents,
         {
-          id: `scen_gate_cong_${state.tickCount}`,
-          zoneId: 'PLAZA_NORTH',
-          title: 'Severe Gate A Queue Congestion',
-          severity: 'HIGH',
-          description: 'Gate A queue times exceeded 20 minutes due to reader malfunctions. Fans redirected.',
+          id: `scen_goal_${Date.now()}`,
+          zoneId: 'STAND_NORTH',
+          title: 'GOAL! Cascadia FC Score!',
+          severity: 'LOW',
+          description: 'Stadium crowd explodes in celebration. Sound levels peak at 112dB. Seating bowls are highly active.',
           active: true,
           timestamp: nowStr,
         },
@@ -330,24 +430,233 @@ export function triggerScenario(scenario: 'GATE_CONGESTION' | 'MEDICAL_INCIDENT'
       break;
     }
 
-    case 'MEDICAL_INCIDENT': {
+    case 'YELLOW_CARD': {
       state.incidents = [
         ...state.incidents,
         {
-          id: `scen_med_${state.tickCount}`,
-          zoneId: 'STAND_EAST',
-          title: 'Cardiac Emergency Stand East',
-          severity: 'CRITICAL',
-          description: 'First responders dispatched to Section E4 row 12. Keep access lanes clear.',
+          id: `scen_yellow_${Date.now()}`,
+          zoneId: 'STAND_SOUTH',
+          title: 'Yellow Card Issued',
+          severity: 'LOW',
+          description: 'A yellow card is shown to Metro United defender. Moderate tension and booing in the South Stand.',
           active: true,
           timestamp: nowStr,
         },
       ];
+      break;
+    }
 
+    case 'RED_CARD': {
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_red_${Date.now()}`,
+          zoneId: 'STAND_SOUTH',
+          title: 'Red Card Issued - High Tension',
+          severity: 'MEDIUM',
+          description: 'Metro United player sent off for a tackle. High crowd tension. Extra security personnel positioned near player tunnel.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
+      const standS = state.zones.find(z => z.id === 'STAND_SOUTH');
+      if (standS) {
+        standS.trend = 'RISING';
+      }
+      break;
+    }
+
+    case 'MEDICAL_INCIDENT':
+    case 'MEDICAL_EMERGENCY': {
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_med_${Date.now()}`,
+          zoneId: 'STAND_EAST',
+          title: 'Medical Emergency Stand East',
+          severity: 'CRITICAL',
+          description: 'First responders dispatched to Section E4 row 12 for immediate medical attention. Walkways being cleared.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
       const standE = state.zones.find(z => z.id === 'STAND_EAST');
       if (standE) {
         standE.trend = 'STABLE';
       }
+      break;
+    }
+
+    case 'CROWD_SURGE': {
+      const concourse = state.zones.find(z => z.id === 'CONCOURSE_LOWER');
+      if (concourse) {
+        concourse.occupancy = Math.round(concourse.capacity * 0.95);
+        concourse.trend = 'RAPIDLY_RISING';
+      }
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_surge_${Date.now()}`,
+          zoneId: 'CONCOURSE_LOWER',
+          title: 'Crowd Surge Lower Concourse',
+          severity: 'HIGH',
+          description: 'Sudden high passenger flow at Lower Concourse entrances. Pacing rails deployed to steady the inflow.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
+      break;
+    }
+
+    case 'GATE_CONGESTION': {
+      const gateA = state.gates.find(g => g.id === 'GATE_A');
+      if (gateA) {
+        gateA.status = 'RESTRICTED';
+        gateA.occupancy = Math.round(gateA.capacity * 0.95);
+        gateA.trend = 'RAPIDLY_RISING';
+      }
+      const plazaN = state.zones.find(z => z.id === 'PLAZA_NORTH');
+      if (plazaN) {
+        plazaN.occupancy = Math.round(plazaN.capacity * 0.90);
+        plazaN.trend = 'RAPIDLY_RISING';
+      }
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_gate_cong_${Date.now()}`,
+          zoneId: 'PLAZA_NORTH',
+          title: 'Severe Gate A Queue Congestion',
+          severity: 'HIGH',
+          description: 'Gate A queue times exceeded 20 minutes due to ticket reader failure. Fans directed to alternative gates.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
+      break;
+    }
+
+    case 'HEAVY_RAIN': {
+      state.zones.forEach(z => {
+        if (z.type === 'PLAZA') {
+          z.occupancy = Math.round(z.occupancy * 0.3);
+          z.trend = 'FALLING';
+        } else if (z.type === 'CONCOURSE' || z.type === 'SERVICE') {
+          z.occupancy = Math.min(z.capacity, Math.round(z.occupancy * 1.5));
+          z.trend = 'RAPIDLY_RISING';
+        }
+      });
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_rain_${Date.now()}`,
+          zoneId: 'CONCOURSE_LOWER',
+          title: 'Heavy Rain - Covered Concourse Surge',
+          severity: 'MEDIUM',
+          description: 'Heavy sudden rainfall started. Fans rushing to covered areas. High slip warning active across all concourses.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
+      break;
+    }
+
+    case 'VIP_ARRIVAL': {
+      const standW = state.zones.find(z => z.id === 'STAND_WEST');
+      if (standW) {
+        standW.occupancy = Math.min(standW.capacity, Math.round(standW.occupancy * 1.15));
+        standW.trend = 'RISING';
+      }
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_vip_${Date.now()}`,
+          zoneId: 'STAND_WEST',
+          title: 'VIP Dignitary Arrival',
+          severity: 'MEDIUM',
+          description: 'Official VIP motorcade has arrived. Stand West VIP gates isolated. Escort team deployed.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
+      break;
+    }
+
+    case 'SECURITY_ALERT': {
+      const gateB = state.gates.find(g => g.id === 'GATE_B');
+      if (gateB) {
+        gateB.status = 'CLOSED';
+        gateB.trend = 'STABLE';
+      }
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_security_${Date.now()}`,
+          zoneId: 'PLAZA_SOUTH',
+          title: 'Unattended Package Security Alert',
+          severity: 'CRITICAL',
+          description: 'Unattended bag spotted at South Plaza Entrance Gate B. Cordon established. Security responders on scene.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
+      break;
+    }
+
+    case 'LOST_CHILD': {
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_lost_${Date.now()}`,
+          zoneId: 'PLAZA_NORTH',
+          title: 'Lost Child Alert',
+          severity: 'LOW',
+          description: 'An 8-year-old child reported separated near North Plaza. Security staff alerted and searching concourses.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
+      break;
+    }
+
+    case 'PUBLIC_TRANSPORT_DELAY': {
+      state.transport.metroQueueSeconds = 900;
+      const metro = state.zones.find(z => z.id === 'METRO_STATION');
+      if (metro) {
+        metro.occupancy = Math.round(metro.capacity * 0.95);
+        metro.trend = 'RAPIDLY_RISING';
+      }
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_transport_${Date.now()}`,
+          zoneId: 'METRO_STATION',
+          title: 'Metro Service Technical Delay',
+          severity: 'HIGH',
+          description: 'Metro Line 2 experiencing signal errors. Station platforms building high density. Bus shuttle pacing activated.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
+      break;
+    }
+
+    case 'POWER_FAILURE': {
+      const upperConc = state.zones.find(z => z.id === 'CONCOURSE_UPPER');
+      if (upperConc) {
+        upperConc.trend = 'STABLE';
+      }
+      state.incidents = [
+        ...state.incidents,
+        {
+          id: `scen_power_${Date.now()}`,
+          zoneId: 'CONCOURSE_UPPER',
+          title: 'Substation Power Interruption',
+          severity: 'CRITICAL',
+          description: 'Partial power blackout in Upper Concourse. Emergency backup generators online. High tracking on exits.',
+          active: true,
+          timestamp: nowStr,
+        },
+      ];
       break;
     }
 
